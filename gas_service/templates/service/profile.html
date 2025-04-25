@@ -1,0 +1,86 @@
+{% extends 'service/base.html' %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <h1 class="text-center mb-4">Профиль пользователя</h1>
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <h5 class="card-title">Редактировать профиль</h5>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.full_name.id_for_label }}" class="form-label">ФИО</label>
+                        <input type="text" name="{{ form.full_name.name }}" id="{{ form.full_name.id_for_label }}" class="form-control" value="{{ form.full_name.value|default_if_none:'' }}">
+                        {% if form.full_name.errors %}
+                            <div class="text-danger">{{ form.full_name.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.phone.id_for_label }}" class="form-label">Телефон</label>
+                        <input type="text" name="{{ form.phone.name }}" id="{{ form.phone.id_for_label }}" class="form-control" value="{{ form.phone.value|default_if_none:'' }}">
+                        {% if form.phone.errors %}
+                            <div class="text-danger">{{ form.phone.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.address.id_for_label }}" class="form-label">Адрес</label>
+                        <textarea name="{{ form.address.name }}" id="{{ form.address.id_for_label }}" class="form-control">{{ form.address.value|default_if_none:'' }}</textarea>
+                        {% if form.address.errors %}
+                            <div class="text-danger">{{ form.address.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.location.id_for_label }}" class="form-label">Локация</label>
+                        <select name="{{ form.location.name }}" id="{{ form.location.id_for_label }}" class="form-control">
+                            <option value="" {% if not form.location.value %}selected{% endif %}>Выберите локацию</option>
+                            {% for location in form.location.field.queryset %}
+                                <option value="{{ location.pk }}" {% if form.location.value == location.pk|stringformat:"s" %}selected{% endif %}>{{ location }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if form.location.errors %}
+                            <div class="text-danger">{{ form.location.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-primary">Сохранить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Ваши заявки</h5>
+                {% if requests %}
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th scope="col">ФИО</th>
+                            <th scope="col">Оборудование</th>
+                            <th scope="col">Дата</th>
+                            <th scope="col">Локация</th>
+                            <th scope="col">Инженер</th>
+                            <th scope="col">Статус</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for request in requests %}
+                        <tr>
+                            <td>{{ request.full_name }}</td>
+                            <td>{{ request.equipment_type }}</td>
+                            <td>{{ request.request_date }}</td>
+                            <td>{{ request.location|default:'Не указана' }}</td>
+                            <td>{{ request.engineer|default:'Не назначен' }}</td>
+                            <td>{{ request.get_status_display }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <p>У вас нет заявок.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
