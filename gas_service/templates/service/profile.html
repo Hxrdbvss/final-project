@@ -31,9 +31,9 @@
                         {% endif %}
                     </div>
                     <div class="mb-3">
-                        <label for="{{ form.location.id_for_label }}" class="form-label">Локация</label>
+                        <label for="{{ form.location.id_for_label }}" class="form-label">Локация (необязательно)</label>
                         <select name="{{ form.location.name }}" id="{{ form.location.id_for_label }}" class="form-control">
-                            <option value="" {% if not form.location.value %}selected{% endif %}>Выберите локацию</option>
+                            <option value="" {% if not form.location.value %}selected{% endif %}>Не выбрано</option>
                             {% for location in form.location.field.queryset %}
                                 <option value="{{ location.pk }}" {% if form.location.value == location.pk|stringformat:"s" %}selected{% endif %}>{{ location }}</option>
                             {% endfor %}

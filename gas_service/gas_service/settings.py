@@ -132,3 +132,7 @@ MESSAGE_TAGS = {
     messages.WARNING: 'warning',
     messages.ERROR: 'danger',
 }
+
+# URL для перенаправления неавторизованных пользователей
+LOGIN_URL = '/login/'
+
