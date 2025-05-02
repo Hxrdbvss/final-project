@@ -30,18 +30,6 @@
                             <div class="text-danger">{{ form.address.errors }}</div>
                         {% endif %}
                     </div>
-                    <div class="mb-3">
-                        <label for="{{ form.location.id_for_label }}" class="form-label">Локация (необязательно)</label>
-                        <select name="{{ form.location.name }}" id="{{ form.location.id_for_label }}" class="form-control">
-                            <option value="" {% if not form.location.value %}selected{% endif %}>Не выбрано</option>
-                            {% for location in form.location.field.queryset %}
-                                <option value="{{ location.pk }}" {% if form.location.value == location.pk|stringformat:"s" %}selected{% endif %}>{{ location }}</option>
-                            {% endfor %}
-                        </select>
-                        {% if form.location.errors %}
-                            <div class="text-danger">{{ form.location.errors }}</div>
-                        {% endif %}
-                    </div>
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary">Сохранить</button>
                     </div>
@@ -61,6 +49,7 @@
                             <th scope="col">Локация</th>
                             <th scope="col">Инженер</th>
                             <th scope="col">Статус</th>
+                            <th scope="col">Действия</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -71,7 +60,10 @@
                             <td>{{ request.request_date }}</td>
                             <td>{{ request.location|default:'Не указана' }}</td>
                             <td>{{ request.engineer|default:'Не назначен' }}</td>
-                            <td>{{ request.get_status_display }}</td>
+                            tits<td>{{ request.get_status_display }}</td>
+                            <td>
+                                <a href="{% url 'cancel_request' request.id %}" class="btn btn-danger btn-sm">Отменить</a>
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>

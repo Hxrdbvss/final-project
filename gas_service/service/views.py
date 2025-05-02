@@ -2,9 +2,8 @@
 import requests
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
 from datetime import timedelta, time
@@ -15,14 +14,14 @@ from .utils import extract_street, find_location, set_location_for_engineer
 @login_required
 def create_request(request):
     if request.method == 'POST':
-        form = ServiceRequestForm(request.POST, user=request.user)  # user передаём как именованный аргумент
+        form = ServiceRequestForm(request.POST, user=request.user)
         if form.is_valid():
             service_request = form.save(commit=False)
             service_request.user = request.user
 
             # Определение локации
             street_name = extract_street(service_request.address)
-            api_key = "ВАШ_API_КЛЮЧ"  # Замени на свой ключ Яндекс.Карт
+            api_key = "ВАШ_API_КЛЮЧ"
             service_request.location = find_location(street_name, api_key)
             if not service_request.location:
                 messages.warning(request, "Адрес не распознан, заявка в обработке")
@@ -73,7 +72,7 @@ def create_request(request):
 
             return redirect('request_list')
     else:
-        form = ServiceRequestForm(user=request.user)  # user передаём как именованный аргумент
+        form = ServiceRequestForm(user=request.user)
     return render(request, 'service/request_form.html', {'form': form})
 
 def is_working_day(engineer, date):
@@ -144,23 +143,11 @@ def profile(request):
     return render(request, 'service/profile.html', {'form': form, 'requests': requests})
 
 @login_required
-def suggest_address(request):
-    query = request.GET.get('query', '')
-    if not query:
-        return JsonResponse({'error': 'Query parameter is required'}, status=400)
-
-    api_key = "6adf3a94-4730-4b26-8f14-5b0c5b557194"  # Замени на свой API-ключ
-    url = f"https://suggest-maps.yandex.ru/v1/suggest?apikey={api_key}&text={query}&lang=ru_RU"
+def cancel_request(request, request_id):
+    # Находим заявку и проверяем, что она принадлежит текущему пользователю
+    service_request = get_object_or_404(ServiceRequest, id=request_id, user=request.user)
     
-    headers = {
-        'Referer': 'http://127.0.0.1:8000',  # Добавляем заголовок Referer
-    }
-
-    try:
-        response = requests.get(url)
-        response.raise_for_status()  # Проверяем, что запрос успешен
-        data = response.json()
-        suggestions = [result['title'] for result in data.get('results', [])]
-        return JsonResponse({'suggestions': suggestions})
-    except requests.exceptions.RequestException as e:
-        return JsonResponse({'error': str(e)}, status=500)    
+    # Удаляем заявку
+    service_request.delete()
+    messages.success(request, 'Заявка успешно отменена.')
+    return redirect('profile')

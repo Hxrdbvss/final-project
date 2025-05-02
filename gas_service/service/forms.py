@@ -51,7 +51,7 @@ class UserRegisterForm(UserCreationForm):
 class UserProfileForm(forms.ModelForm):
     class Meta:
         model = UserProfile
-        fields = ['full_name', 'phone', 'address', 'location']
+        fields = ['full_name', 'phone', 'address']
         widgets = {
             'location': forms.Select(attrs={'required': False}),
         }
