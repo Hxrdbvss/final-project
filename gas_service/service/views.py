@@ -1,15 +1,77 @@
 # service/views.py
 import requests
+from rest_framework import viewsets, status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django.contrib.auth.models import User
 from django.http import JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.models import User
 from django.contrib import messages
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
 from datetime import timedelta, time
 from .forms import ServiceRequestForm, UserRegisterForm, UserProfileForm
-from .models import ServiceRequest, Engineer, UserProfile
+from .models import ServiceRequest, Engineer, UserProfile, Location, Street
 from .utils import extract_street, find_location, set_location_for_engineer
+from .serializers import UserProfileSerializer, ServiceRequestSerializer, EngineerSerializer, LocationSerializer, StreetSerializer
+
+class LocationViewSet(viewsets.ModelViewSet):
+    queryset = Location.objects.all()
+    serializer_class = LocationSerializer
+    permission_classes = [IsAuthenticated]
+
+class StreetViewSet(viewsets.ModelViewSet):
+    queryset = Street.objects.all()
+    serializer_class = StreetSerializer
+    permission_classes = [IsAuthenticated]
+
+class UserProfileViewSet(viewsets.ModelViewSet):
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return UserProfile.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+class EngineerViewSet(viewsets.ModelViewSet):
+    queryset = Engineer.objects.all()
+    serializer_class = EngineerSerializer
+    permission_classes = [IsAuthenticated]
+
+class ServiceRequestViewSet(viewsets.ModelViewSet):
+    serializer_class = ServiceRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return ServiceRequest.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+@csrf_exempt
+@api_view(['POST'])
+def api_register(request):
+    data = request.data
+    username = data.get('username')
+    password = data.get('password')
+    email = data.get('email')
+
+    if not username or not password or not email:
+        return Response({'detail': 'Все поля обязательны'}, status=status.HTTP_400_BAD_REQUEST)
+
+    if User.objects.filter(username=username).exists():
+        return Response({'detail': 'Пользователь с таким именем уже существует'}, status=status.HTTP_400_BAD_REQUEST)
+
+    user = User.objects.create_user(username=username, password=password, email=email)
+    UserProfile.objects.create(user=user)
+    return Response({'detail': 'Пользователь успешно создан'}, status=status.HTTP_201_CREATED)
 
 @login_required
 def create_request(request):
@@ -21,7 +83,7 @@ def create_request(request):
 
             # Определение локации
             street_name = extract_street(service_request.address)
-            api_key = "ВАШ_API_КЛЮЧ"
+            api_key = "ВАШ_API_КЛЮЧ"  # Замени на реальный API-ключ
             service_request.location = find_location(street_name, api_key)
             if not service_request.location:
                 messages.warning(request, "Адрес не распознан, заявка в обработке")

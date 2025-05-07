@@ -1,3 +1,4 @@
+/* frontend/src/index.css */
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
@@ -24,10 +25,9 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
+  /* Убрали display: flex и place-items: center, чтобы контент растягивался */
 }
 
 h1 {
@@ -65,4 +65,27 @@ button:focus-visible {
   button {
     background-color: #f9f9f9;
   }
+}
+
+.card {
+  border-radius: 10px;
+}
+
+.btn-primary {
+  transition: background-color 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.table th {
+  background-color: #f8f9fa;
+}
+
+/* Обновленная кастомная ширина для карточек */
+.custom-card-width {
+  width: 100%; /* Разрешаем растягиваться на всю ширину контейнера */
+  max-width: 1200px; /* Увеличили максимальную ширину для широких экранов */
+  margin: 0 auto;
 }
