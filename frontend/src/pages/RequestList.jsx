@@ -32,6 +32,7 @@ function RequestList() {
         setRequests(data);
       } catch (err) {
         setError('Ошибка при загрузке заявок');
+        toast.error('Не удалось загрузить заявки.', { position: 'top-right' });
       } finally {
         setLoading(false);
       }
@@ -71,8 +72,8 @@ function RequestList() {
 
     if (value.length > 0) {
       const filteredSuggestions = requests
-        .flatMap(req => [req.full_name, req.email, req.equipment_type])
-        .filter(item => item.toLowerCase().includes(value.toLowerCase()))
+        .flatMap(req => [req.full_name, req.email, req.equipment_type, req.engineer || ''])
+        .filter(item => item && item.toLowerCase().includes(value.toLowerCase()))
         .filter((item, index, self) => self.indexOf(item) === index)
         .slice(0, 5);
       setSuggestions(filteredSuggestions);
@@ -89,22 +90,25 @@ function RequestList() {
   };
 
   const filteredRequests = requests.filter(req => {
-    const matchesSearch = req.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         req.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         req.equipment_type.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
-    const requestDate = new Date(req.request_date);
+    const matchesSearch = (req.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
+                         (req.email?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
+                         (req.equipment_type?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
+                         ((req.engineer || '').toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesStatus = statusFilter === 'all' || (req.status === statusFilter);
+    const requestDate = req.request_date ? new Date(req.request_date) : null;
     const startDate = dateRange.start ? new Date(dateRange.start) : null;
     const endDate = dateRange.end ? new Date(dateRange.end) : null;
-    const matchesDate = (!startDate || requestDate >= startDate) && 
-                        (!endDate || requestDate <= endDate);
+    const matchesDate = (!startDate || (requestDate && requestDate >= startDate)) && 
+                        (!endDate || (requestDate && requestDate <= endDate));
 
     return matchesSearch && matchesStatus && matchesDate;
   });
 
   const sortedRequests = [...filteredRequests].sort((a, b) => {
-    if (a[sortField] < b[sortField]) return sortOrder === 'asc' ? -1 : 1;
-    if (a[sortField] > b[sortField]) return sortOrder === 'asc' ? 1 : -1;
+    const aValue = a[sortField] || '';
+    const bValue = b[sortField] || '';
+    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
     return 0;
   });
 
@@ -118,9 +122,9 @@ function RequestList() {
 
   const exportToCSV = () => {
     setExporting(true);
-    const headers = ['ID,ФИО,Email,Телефон,Адрес,Тип оборудования,Дата,Статус\n'];
+    const headers = ['ID,ФИО,Email,Телефон,Адрес,Тип оборудования,Дата,Статус,Инженер,Время назначения\n'];
     const rows = sortedRequests.map(req =>
-      `${req.id},${req.full_name},${req.email},${req.phone},${req.address},${req.equipment_type},${req.request_date},${req.status}`
+      `${req.id || ''},${req.full_name || ''},${req.email || ''},${req.phone || ''},${req.address || ''},${req.equipment_type || ''},${req.request_date || ''},${req.status || ''},${req.engineer || ''},${req.scheduledTime || ''}`
     ).join('\n');
     const csvContent = headers + rows;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -151,7 +155,7 @@ function RequestList() {
               <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
                 <Form.Control
                   type="text"
-                  placeholder="Поиск по ФИО, Email или оборудованию..."
+                  placeholder="Поиск по ФИО, Email, оборудованию или инженеру..."
                   value={searchTerm}
                   onChange={handleSearchChange}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
@@ -250,15 +254,21 @@ function RequestList() {
                         <th onClick={() => handleSort('status')}>
                           Статус <FaSort />
                         </th>
+                        <th onClick={() => handleSort('engineer')}>
+                          Инженер <FaSort />
+                        </th>
+                        <th onClick={() => handleSort('scheduledTime')}>
+                          Время назначения <FaSort />
+                        </th>
                         <th>Действия</th>
                       </tr>
                     </thead>
                     <tbody>
                       {paginatedRequests.map(request => (
                         <tr key={request.id}>
-                          <td>{request.full_name}</td>
-                          <td>{request.email}</td>
-                          <td>{request.equipment_type}</td>
+                          <td>{request.full_name || '-'}</td>
+                          <td>{request.email || '-'}</td>
+                          <td>{request.equipment_type || '-'}</td>
                           <td>
                             <span
                               className={`badge ${
@@ -269,21 +279,33 @@ function RequestList() {
                                   : 'bg-danger'
                               }`}
                             >
-                              {request.status}
+                              {request.status || 'Не определён'}
                             </span>
                           </td>
+                          <td>{request.engineer || 'Не назначен'}</td>
+                          <td>{request.scheduledTime ? new Date(request.scheduledTime).toLocaleString() : 'Не задано'}</td>
                           <td>
-                            <motion.div whileHover={{ scale: 1.05 }}>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() => handleCancel(request.id)}
-                                className="me-2"
-                              >
-                                Отменить
-                              </Button>
-                            </motion.div>
-                          </td>
+                          <motion.div whileHover={{ scale: 1.05 }}>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => navigate(`/edit-request/${request.id}`)}
+                              className="me-2"
+                              disabled={request.status === 'REJECTED' || request.status === 'COMPLETED'}
+                            >
+                              Редактировать
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => handleCancel(request.id)}
+                              className="me-2"
+                              disabled={!request.status || request.status === 'REJECTED'}
+                            >
+                              Отменить
+                            </Button>
+                          </motion.div>
+                        </td>
                         </tr>
                       ))}
                     </tbody>

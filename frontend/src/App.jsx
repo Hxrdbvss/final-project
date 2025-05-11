@@ -6,6 +6,7 @@ import NavBar from './components/NavBar';
 import RequestForm from './pages/RequestForm';
 import RequestList from './pages/RequestList';
 import Profile from './pages/Profile';
+import EditRequest from './pages/EditRequest';
 import EditProfile from './pages/EditProfile'; // Импортируем новую страницу
 import Login from './pages/Login';
 import Register from './pages/Register';

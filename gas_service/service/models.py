@@ -1,4 +1,4 @@
-# gas_service/models.py
+# service/models.py
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -58,7 +58,8 @@ class ServiceRequest(models.Model):
     phone = models.CharField(max_length=15)
     address = models.TextField()
     equipment_type = models.CharField(max_length=100)
-    request_date = models.DateTimeField()
+    request_date = models.DateTimeField(auto_now_add=True)
+    scheduled_time = models.DateTimeField(null=True, blank=True)  # Новое поле для времени выполнения заявки
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
     location = models.ForeignKey(Location, null=True, blank=True, on_delete=models.SET_NULL)
     engineer = models.ForeignKey(Engineer, null=True, blank=True, on_delete=models.SET_NULL)

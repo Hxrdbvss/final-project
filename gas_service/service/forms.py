@@ -10,9 +10,9 @@ from datetime import time
 class ServiceRequestForm(forms.ModelForm):
     class Meta:
         model = ServiceRequest
-        fields = ['full_name', 'email', 'phone', 'address', 'equipment_type', 'request_date']
+        fields = ['full_name', 'email', 'phone', 'address', 'equipment_type', 'scheduled_time']
         widgets = {
-            'request_date': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
+            'scheduled_time': forms.DateTimeInput(attrs={'type': 'datetime-local'}),
             'address': forms.TextInput(attrs={'id': 'address'}),
         }
 
@@ -25,15 +25,15 @@ class ServiceRequestForm(forms.ModelForm):
             self.fields['phone'].initial = profile.phone
             self.fields['address'].initial = profile.address
 
-    def clean_request_date(self):
-        request_date = self.cleaned_data['request_date']
+    def clean_scheduled_time(self):
+        scheduled_time = self.cleaned_data['scheduled_time']
         now = timezone.now()
-        if request_date < now:
-            raise forms.ValidationError("Дата должна быть в будущем")
-        hour = request_date.hour
+        if scheduled_time < now:
+            raise forms.ValidationError("Дата и время должны быть в будущем")
+        hour = scheduled_time.hour
         if not (9 <= hour < 18):
             raise forms.ValidationError("Время должно быть с 9:00 до 18:00")
-        return request_date
+        return scheduled_time
 
     def clean_phone(self):
         phone = self.cleaned_data['phone']

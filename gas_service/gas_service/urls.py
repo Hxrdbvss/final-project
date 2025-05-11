@@ -9,11 +9,11 @@ from service.views import (
 
 # Настройка маршрутов для ViewSet
 router = DefaultRouter()
-router.register(r'locations', LocationViewSet)
-router.register(r'streets', StreetViewSet)
-router.register(r'user-profiles', UserProfileViewSet)  # Базовый маршрут для UserProfileViewSet
-router.register(r'engineers', EngineerViewSet)
-router.register(r'requests', ServiceRequestViewSet)
+router.register(r'user-profiles', UserProfileViewSet, basename='user-profile')
+router.register(r'requests', ServiceRequestViewSet, basename='service-request')
+router.register(r'engineers', EngineerViewSet, basename='engineer')
+router.register(r'locations', LocationViewSet, basename='location')
+router.register(r'streets', StreetViewSet, basename='street')
 
 # Кастомный маршрут для /api/profile/
 user_profile_list = UserProfileViewSet.as_view({

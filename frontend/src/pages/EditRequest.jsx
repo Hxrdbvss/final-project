@@ -1,13 +1,15 @@
-// frontend/src/pages/RequestForm.jsx
+// frontend/src/pages/EditRequest.jsx
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { Form, Button, Container } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
 import { ClipLoader } from 'react-spinners';
-import { createRequest, getProfile } from '../services/api';
+import { getRequests, updateRequest } from '../services/api';
 
-function RequestForm() {
+function EditRequest() {
+  const { id } = useParams();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
@@ -17,25 +19,36 @@ function RequestForm() {
     scheduled_time: '',
   });
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
+  const [fetching, setFetching] = useState(true);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchRequest = async () => {
       try {
-        const profile = await getProfile();
-        setFormData((prev) => ({
-          ...prev,
-          full_name: profile.full_name || '',
-          email: profile.email || '',
-          phone: profile.phone || '',
-          address: profile.address || '',
-        }));
+        const requests = await getRequests();
+        const request = requests.find((req) => req.id === parseInt(id));
+        if (request) {
+          setFormData({
+            full_name: request.full_name || '',
+            email: request.email || '',
+            phone: request.phone || '',
+            address: request.address || '',
+            equipment_type: request.equipment_type || '',
+            scheduled_time: request.scheduled_time
+              ? new Date(request.scheduled_time).toISOString().slice(0, 16)
+              : '',
+          });
+        } else {
+          toast.error('Заявка не найдена.', { position: 'top-right' });
+          navigate('/requests');
+        }
       } catch (err) {
-        toast.error('Ошибка при загрузке профиля.', { position: 'top-right' });
+        toast.error('Ошибка при загрузке заявки.', { position: 'top-right' });
+      } finally {
+        setFetching(false);
       }
     };
-    fetchProfile();
-  }, []);
+    fetchRequest();
+  }, [id, navigate]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -56,16 +69,25 @@ function RequestForm() {
 
     setLoading(true);
     try {
-      await createRequest(formattedData);
-      toast.success('Заявка создана, инженер будет назначен!', { position: 'top-right' });
+      await updateRequest(id, formattedData);
+      toast.success('Заявка обновлена!', { position: 'top-right' });
       navigate('/requests');
     } catch (err) {
       console.error('Ошибка API:', err.response?.data || err.message);
-      toast.error('Ошибка при создании заявки.', { position: 'top-right' });
+      toast.error('Ошибка при обновлении заявки.', { position: 'top-right' });
     } finally {
       setLoading(false);
     }
   };
+
+  if (fetching) {
+    return (
+      <div className="text-center mt-5">
+        <ClipLoader color="#007bff" size={50} />
+        <p className="mt-2">Загрузка...</p>
+      </div>
+    );
+  }
 
   return (
     <Container fluid className="min-h-screen py-10 px-4 bg-gradient-to-br from-gray-100 to-white dark:from-gray-900 dark:to-black">
@@ -76,7 +98,7 @@ function RequestForm() {
         className="max-w-md mx-auto"
       >
         <div className="card p-6">
-          <h2 className="card-title mb-6 text-center">Создать заявку</h2>
+          <h2 className="card-title mb-6 text-center">Редактировать заявку</h2>
           <Form onSubmit={handleSubmit}>
             <Form.Group className="mb-4">
               <Form.Label className="text-lg font-medium text-teal-400">ФИО</Form.Label>
@@ -155,7 +177,7 @@ function RequestForm() {
                 disabled={loading}
                 className="w-100"
               >
-                {loading ? <ClipLoader color="#fff" size={20} /> : 'Создать'}
+                {loading ? <ClipLoader color="#fff" size={20} /> : 'Сохранить'}
               </Button>
             </motion.div>
           </Form>
@@ -165,4 +187,4 @@ function RequestForm() {
   );
 }
 
-export default RequestForm;
+export default EditRequest;

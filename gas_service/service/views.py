@@ -33,29 +33,33 @@ class StreetViewSet(viewsets.ModelViewSet):
 class UserProfileViewSet(viewsets.ModelViewSet):
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]
-    queryset = UserProfile.objects.all()  # Базовый queryset
 
     def get_queryset(self):
-        return UserProfile.objects.filter(user=self.request.user)
-
-    def perform_create(self, serializer):
-        serializer.save(user=self.request.user)
+        try:
+            return UserProfile.objects.filter(user=self.request.user)
+        except Exception as e:
+            print(f"Error in get_queryset: {e}")
+            return UserProfile.objects.none()
 
     def list(self, request, *args, **kwargs):
-        profile = self.get_queryset().first()
-        if not profile:
-            return Response({'detail': 'Профиль не найден'}, status=status.HTTP_404_NOT_FOUND)
-        serializer = self.get_serializer(profile)
-        return Response(serializer.data)
+        try:
+            profile, created = UserProfile.objects.get_or_create(user=self.request.user)
+            serializer = self.get_serializer(profile)
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"Error in list: {e}")
+            return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def update(self, request, *args, **kwargs):
-        profile = self.get_queryset().first()
-        if not profile:
-            return Response({'detail': 'Профиль не найден'}, status=status.HTTP_404_NOT_FOUND)
-        serializer = self.get_serializer(profile, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+        try:
+            profile, created = UserProfile.objects.get_or_create(user=self.request.user)
+            serializer = self.get_serializer(profile, data=request.data, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"Error in update: {e}")
+            return Response({"error": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class EngineerViewSet(viewsets.ModelViewSet):
     queryset = Engineer.objects.all()
@@ -71,6 +75,9 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
         return ServiceRequest.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    def perform_update(self, serializer):
         serializer.save(user=self.request.user)
 
 @csrf_exempt

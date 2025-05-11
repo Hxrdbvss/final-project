@@ -50,5 +50,6 @@ export const getProfile = () => api.get('/profile/').then(res => res.data);
 export const updateProfile = (data) => api.put('/profile/', data).then(res => res.data);
 export const loginUser = (credentials) => axios.post('/api/token/', credentials).then(res => res.data);
 export const registerUser = (data) => axios.post('/register/', data).then(res => res.data);
-
+// frontend/src/services/api.js
+export const updateRequest = (id, data) => api.put(`/requests/${id}/`, data).then(res => res.data);
 export default api;
