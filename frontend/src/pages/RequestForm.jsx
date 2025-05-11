@@ -1,134 +1,149 @@
 // frontend/src/pages/RequestForm.jsx
-import { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createRequest } from '../services/api';
-import { Modal, Button } from 'react-bootstrap';
+import { getProfile, createRequest } from '../services/api';
+import { Button, Form } from 'react-bootstrap';
+import { FaSave } from 'react-icons/fa';
+import { ClipLoader } from 'react-spinners';
 import { toast } from 'react-toastify';
+import { motion } from 'framer-motion';
 
 function RequestForm() {
-  const navigate = useNavigate();
-  const { register, handleSubmit, formState: { errors } } = useForm({
-    defaultValues: {
-      full_name: '',
-      email: '',
-      phone: '',
-      address: '',
-      equipment_type: '',
-      request_date: '',
-    },
+  const [profile, setProfile] = useState(null);
+  const [formData, setFormData] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    address: '',
+    request_date: '',
   });
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState({});
+  const navigate = useNavigate();
 
-  const onSubmit = (data) => {
-    setFormData(data);
-    setShowModal(true);
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const data = await getProfile();
+        setProfile(data);
+        setFormData({
+          full_name: data.full_name || '',
+          email: data.email || '',
+          phone: data.phone || '',
+          address: data.address || '',
+          request_date: '', // Дата задаётся пользователем
+        });
+      } catch (err) {
+        setError('Ошибка при загрузке профиля.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchProfile();
+  }, []);
+
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
   };
 
-  const handleConfirm = async () => {
-    setShowModal(false);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      await createRequest(formData);
-      toast.success('Заявка успешно создана!', { position: 'top-right' });
+      await createRequest(formData); // Предполагаем, что есть функция createRequest в api.js
+      toast.success('Заявка успешно создана!');
       navigate('/requests');
     } catch (err) {
-      setError(err.response?.data?.detail || 'Ошибка при создании заявки');
-      toast.error('Ошибка при создании заявки', { position: 'top-right' });
+      toast.error('Ошибка при создании заявки.');
     }
   };
 
+  if (loading) return (
+    <div className="text-center mt-5">
+      <ClipLoader color="#007bff" size={50} />
+      <p className="mt-2">Загрузка...</p>
+    </div>
+  );
+
+  if (error) return <div className="alert alert-danger mt-5">{error}</div>;
+
   return (
     <div className="row justify-content-center">
-      <div className="col-md-10 col-lg-8">
-        <div className="card shadow-sm custom-card-width">
+      <div className="col-md-6">
+        <div className="card shadow-sm">
           <div className="card-body">
-            <h2 className="card-title text-center mb-4">Создать заявку</h2>
-            {error && <div className="alert alert-danger">{error}</div>}
-            <form onSubmit={handleSubmit(onSubmit)}>
-              <div className="mb-3">
-                <label htmlFor="full_name" className="form-label">ФИО</label>
-                <input
-                  id="full_name"
-                  {...register('full_name', { required: 'Поле обязательно' })}
-                  className={`form-control ${errors.full_name ? 'is-invalid' : ''}`}
+            <h2 className="card-title mb-4">Создание заявки</h2>
+            <Form onSubmit={handleSubmit}>
+              <Form.Group className="mb-3">
+                <Form.Label><strong>ФИО:</strong></Form.Label>
+                <Form.Control
+                  type="text"
+                  name="full_name"
+                  value={formData.full_name}
+                  onChange={handleInputChange}
+                  placeholder="Введите ФИО"
                 />
-                {errors.full_name && <div className="invalid-feedback">{errors.full_name.message}</div>}
-              </div>
-              <div className="mb-3">
-                <label htmlFor="email" className="form-label">Email</label>
-                <input
-                  id="email"
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label><strong>Email:</strong></Form.Label>
+                <Form.Control
                   type="email"
-                  {...register('email', {
-                    required: 'Поле обязательно',
-                    pattern: { value: /^\S+@\S+$/i, message: 'Неверный формат email' },
-                  })}
-                  className={`form-control ${errors.email ? 'is-invalid' : ''}`}
+                  name="email"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  placeholder="Введите email"
                 />
-                {errors.email && <div className="invalid-feedback">{errors.email.message}</div>}
-              </div>
-              <div className="mb-3">
-                <label htmlFor="phone" className="form-label">Телефон</label>
-                <input
-                  id="phone"
-                  type="tel"
-                  {...register('phone', {
-                    required: 'Поле обязательно',
-                    pattern: { value: /^\+?[1-9]\d{1,14}$/, message: 'Неверный формат телефона' },
-                  })}
-                  className={`form-control ${errors.phone ? 'is-invalid' : ''}`}
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label><strong>Телефон:</strong></Form.Label>
+                <Form.Control
+                  type="text"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleInputChange}
+                  placeholder="Введите телефон"
                 />
-                {errors.phone && <div className="invalid-feedback">{errors.phone.message}</div>}
-              </div>
-              <div className="mb-3">
-                <label htmlFor="address" className="form-label">Адрес</label>
-                <input
-                  id="address"
-                  {...register('address', { required: 'Поле обязательно' })}
-                  className={`form-control ${errors.address ? 'is-invalid' : ''}`}
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label><strong>Адрес:</strong></Form.Label>
+                <Form.Control
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  placeholder="Введите адрес"
                 />
-                {errors.address && <div className="invalid-feedback">{errors.address.message}</div>}
-              </div>
-              <div className="mb-3">
-                <label htmlFor="equipment_type" className="form-label">Тип оборудования</label>
-                <input
-                  id="equipment_type"
-                  {...register('equipment_type', { required: 'Поле обязательно' })}
-                  className={`form-control ${errors.equipment_type ? 'is-invalid' : ''}`}
-                />
-                {errors.equipment_type && <div className="invalid-feedback">{errors.equipment_type.message}</div>}
-              </div>
-              <div className="mb-3">
-                <label htmlFor="request_date" className="form-label">Дата и время</label>
-                <input
-                  id="request_date"
+              </Form.Group>
+              <Form.Group className="mb-3">
+                <Form.Label><strong>Дата и время:</strong></Form.Label>
+                <Form.Control
                   type="datetime-local"
-                  {...register('request_date', { required: 'Поле обязательно' })}
-                  className={`form-control ${errors.request_date ? 'is-invalid' : ''}`}
+                  name="request_date"
+                  value={formData.request_date}
+                  onChange={handleInputChange}
+                  min={new Date().toISOString().slice(0, 16)}
                 />
-                {errors.request_date && <div className="invalid-feedback">{errors.request_date.message}</div>}
-              </div>
-              <button type="submit" className="btn btn-primary w-100">
-                Отправить
-              </button>
-            </form>
-
-            <Modal show={showModal} onHide={() => setShowModal(false)}>
-              <Modal.Header closeButton>
-                <Modal.Title>Подтверждение</Modal.Title>
-              </Modal.Header>
-              <Modal.Body>Вы уверены, что хотите отправить заявку?</Modal.Body>
-              <Modal.Footer>
-                <Button variant="secondary" onClick={() => setShowModal(false)}>
+              </Form.Group>
+              <motion.div whileHover={{ scale: 1.05 }} className="d-flex gap-2">
+                <Button
+                  variant="primary"
+                  type="submit"
+                  className="w-50 d-flex align-items-center justify-content-center"
+                >
+                  <FaSave className="me-1" /> Создать
+                </Button>
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate('/')}
+                  className="w-50 d-flex align-items-center justify-content-center"
+                >
                   Отмена
                 </Button>
-                <Button variant="primary" onClick={handleConfirm}>
-                  Подтвердить
-                </Button>
-              </Modal.Footer>
-            </Modal>
+              </motion.div>
+            </Form>
           </div>
         </div>
       </div>

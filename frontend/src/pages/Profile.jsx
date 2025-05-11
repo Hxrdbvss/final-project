@@ -1,23 +1,28 @@
 // frontend/src/pages/Profile.jsx
 import { useState, useEffect } from 'react';
-import { getProfile, updateProfile } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { getProfile } from '../services/api';
+import { motion } from 'framer-motion';
+import { toast } from 'react-toastify';
+import { ClipLoader } from 'react-spinners';
 
 function Profile() {
-  const [profile, setProfile] = useState({
-    full_name: '',
-    phone: '',
-    address: '',
-  });
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProfile = async () => {
       try {
         const data = await getProfile();
-        setProfile(data[0] || { full_name: '', phone: '', address: '' });
+        setUser(data);
       } catch (err) {
-        setError('Ошибка при загрузке профиля');
+        if (err.response?.status === 404) {
+          setError('Профиль не найден.');
+        } else {
+          setError('Ошибка при загрузке профиля.');
+        }
       } finally {
         setLoading(false);
       }
@@ -25,71 +30,57 @@ function Profile() {
     fetchProfile();
   }, []);
 
-  const handleChange = (e) => {
-    setProfile({ ...profile, [e.target.name]: e.target.value });
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('refresh_token');
+    toast.success('Вы успешно вышли!', { position: 'top-right' });
+    navigate('/login');
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await updateProfile(profile);
-      alert('Профиль обновлён');
-    } catch (err) {
-      setError('Ошибка при обновлении профиля');
-    }
+  const handleEditProfile = () => {
+    navigate('/edit-profile');
   };
 
-  if (loading) return <div className="text-center mt-5">Загрузка...</div>;
+  if (loading) return (
+    <div className="flex justify-center items-center h-screen">
+      <ClipLoader color="#50e3c2" size={50} />
+    </div>
+  );
+
   if (error) return <div className="alert alert-danger mt-5">{error}</div>;
 
   return (
-    <div className="row justify-content-center">
-      <div className="col-md-10 col-lg-8">
-        <div className="card shadow-sm">
-          <div className="card-body">
-            <h2 className="card-title text-center mb-4">Профиль пользователя</h2>
-            {error && <div className="alert alert-danger">{error}</div>}
-            <form onSubmit={handleSubmit}>
-              <div className="mb-3">
-                <label htmlFor="full_name" className="form-label">ФИО</label>
-                <input
-                  type="text"
-                  id="full_name"
-                  name="full_name"
-                  value={profile.full_name}
-                  onChange={handleChange}
-                  className="form-control"
-                />
-              </div>
-              <div className="mb-3">
-                <label htmlFor="phone" className="form-label">Телефон</label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={profile.phone}
-                  onChange={handleChange}
-                  className="form-control"
-                />
-              </div>
-              <div className="mb-3">
-                <label htmlFor="address" className="form-label">Адрес</label>
-                <textarea
-                  id="address"
-                  name="address"
-                  value={profile.address}
-                  onChange={handleChange}
-                  className="form-control"
-                  rows="3"
-                />
-              </div>
-              <button type="submit" className="btn btn-primary w-100">
-                Сохранить
-              </button>
-            </form>
+    <div className="min-h-screen py-10 px-4 bg-gradient-to-br from-gray-100 to-white dark:from-gray-900 dark:to-black">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="max-w-2xl mx-auto"
+      >
+        <div className="card p-6">
+          <h2 className="card-title mb-6">Профиль</h2>
+          <div className="space-y-4 text-lg">
+            <p><strong>ФИО:</strong> {user.full_name || 'Не заполнено'}</p>
+            <p><strong>Email:</strong> {user.email || 'Не заполнено'}</p>
+            <p><strong>Телефон:</strong> {user.phone || 'Не заполнено'}</p>
+            <p><strong>Адрес:</strong> {user.address || 'Не заполнено'}</p>
+          </div>
+          <div className="mt-6 space-x-4">
+            <button
+              onClick={handleEditProfile}
+              className="btn-primary"
+            >
+              Изменить профиль
+            </button>
+            <button
+              onClick={handleLogout}
+              className="btn-danger"
+            >
+              Выйти
+            </button>
           </div>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

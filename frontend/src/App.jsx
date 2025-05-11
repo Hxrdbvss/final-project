@@ -6,10 +6,10 @@ import NavBar from './components/NavBar';
 import RequestForm from './pages/RequestForm';
 import RequestList from './pages/RequestList';
 import Profile from './pages/Profile';
+import EditProfile from './pages/EditProfile'; // Импортируем новую страницу
 import Login from './pages/Login';
 import Register from './pages/Register';
 import { ThemeProvider } from './ThemeContext.jsx'; // Изменено с .js на .jsx
-
 
 function AnimatedRoutes() {
   const location = useLocation();
@@ -31,6 +31,10 @@ function AnimatedRoutes() {
             path="/profile"
             element={isAuthenticated ? <Profile /> : <Navigate to="/login" />}
           />
+          <Route
+            path="/edit-profile"
+            element={isAuthenticated ? <EditProfile /> : <Navigate to="/login" />}
+          /> {/* Новый маршрут */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
         </Routes>

@@ -1,85 +1,140 @@
 // frontend/src/components/NavBar.jsx
-import { Link } from 'react-router-dom';
-import { FaUser, FaSignOutAlt, FaHome, FaList, FaMoon, FaSun } from 'react-icons/fa';
-import { useTheme } from '../ThemeContext.jsx'; // Изменено с .js на .jsx
+import { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Navbar, Nav, Container, Button } from 'react-bootstrap';
+import { FaGasPump, FaBars, FaTimes } from 'react-icons/fa';
+import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'react-toastify';
 
 function NavBar() {
+  const [expanded, setExpanded] = useState(false);
+  const navigate = useNavigate();
   const isAuthenticated = !!localStorage.getItem('access_token');
-  const { theme, toggleTheme } = useTheme();
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    window.location.href = '/login';
+    toast.success('Вы успешно вышли из аккаунта!', { position: 'top-right' });
+    navigate('/login');
   };
 
+  const toggleMenu = () => {
+    setExpanded(!expanded);
+  };
+
+  const menuVariants = {
+    closed: {
+      height: 0,
+      opacity: 0,
+      transition: {
+        duration: 0.3,
+        when: 'afterChildren',
+      },
+    },
+    open: {
+      height: 'auto',
+      opacity: 1,
+      transition: {
+        duration: 0.3,
+        when: 'beforeChildren',
+        staggerChildren: 0.1,
+      },
+    },
+  };
+
+  const itemVariants = {
+    closed: { opacity: 0, y: -10 },
+    open: { opacity: 1, y: 0 },
+  };
+
+  const isDarkTheme = document.body.classList.contains('dark-theme');
+
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm">
-      <div className="container">
-        <Link className="navbar-brand fw-bold" to="/">Gas Service</Link>
-        <button
-          className="navbar-toggler"
-          type="button"
-          data-bs-toggle="collapse"
-          data-bs-target="#navbarNav"
-          aria-controls="navbarNav"
-          aria-expanded="false"
-          aria-label="Toggle navigation"
+    <Navbar
+      className={`
+        bg-gradient shadow-md
+        ${isDarkTheme ? 'dark-theme' : ''}
+      `}
+      variant="dark"
+      expand="lg"
+      expanded={expanded}
+    >
+      <Container fluid>
+        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
+          <FaGasPump className="me-2" style={{ fontSize: '1.5rem', color: '#50e3c2' }} />
+          <span className="fw-bold text-white">Gas Service</span>
+        </Navbar.Brand>
+        <Navbar.Toggle
+          aria-controls="navbar-nav"
+          onClick={toggleMenu}
+          className="border-0"
         >
-          <span className="navbar-toggler-icon"></span>
-        </button>
-        <div className="collapse navbar-collapse" id="navbarNav">
-          <div className="navbar-nav ms-auto">
-            <Link className="nav-link d-flex align-items-center" to="/">
-              <FaHome className="me-1" /> Home
-            </Link>
-            <Link className="nav-link d-flex align-items-center" to="/requests">
-              <FaList className="me-1" /> Requests
-            </Link>
-            {isAuthenticated && (
-              <Link className="nav-link d-flex align-items-center" to="/profile">
-                <FaUser className="me-1" /> Profile
-              </Link>
-            )}
-            <div className="nav-item dropdown">
-              {isAuthenticated ? (
-                <>
-                  <a
-                    className="nav-link dropdown-toggle d-flex align-items-center"
-                    href="#"
-                    id="navbarDropdown"
-                    role="button"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false"
-                  >
-                    <FaUser className="me-1" /> Account
-                  </a>
-                  <ul className="dropdown-menu dropdown-menu-end" aria-labelledby="navbarDropdown">
-                    <li>
-                      <button className="dropdown-item d-flex align-items-center" onClick={handleLogout}>
-                        <FaSignOutAlt className="me-1" /> Logout
-                      </button>
-                    </li>
-                  </ul>
-                </>
-              ) : (
-                <>
-                  <Link className="nav-link" to="/login">Login</Link>
-                  <Link className="nav-link" to="/register">Register</Link>
-                </>
-              )}
-            </div>
-            <button
-              className="btn btn-outline-light ms-2"
-              onClick={toggleTheme}
-              title="Переключить тему"
+          {expanded ? (
+            <FaTimes size={24} className="text-white" />
+          ) : (
+            <FaBars size={24} className="text-white" />
+          )}
+        </Navbar.Toggle>
+        <Navbar.Collapse id="navbar-nav" className="justify-content-end">
+          <AnimatePresence>
+            <motion.div
+              initial="closed"
+              animate={expanded ? 'open' : 'closed'}
+              exit="closed"
+              variants={menuVariants}
+              className="w-100"
             >
-              {theme === 'light' ? <FaMoon /> : <FaSun />}
-            </button>
-          </div>
-        </div>
-      </div>
-    </nav>
+              <Nav className="ms-auto">
+                {isAuthenticated ? (
+                  <>
+                    <motion.div variants={itemVariants}>
+                      <Nav.Link as={Link} to="/" onClick={() => setExpanded(false)}>
+                        Создать заявку
+                      </Nav.Link>
+                    </motion.div>
+                    <motion.div variants={itemVariants}>
+                      <Nav.Link as={Link} to="/requests" onClick={() => setExpanded(false)}>
+                        Мои заявки
+                      </Nav.Link>
+                    </motion.div>
+                    <motion.div variants={itemVariants}>
+                      <Nav.Link as={Link} to="/profile" onClick={() => setExpanded(false)}>
+                        Профиль
+                      </Nav.Link>
+                    </motion.div>
+                    <motion.div variants={itemVariants} className="d-flex align-items-center">
+                      <Button
+                        variant="outline-light"
+                        onClick={() => {
+                          handleLogout();
+                          setExpanded(false);
+                        }}
+                        className="ms-2"
+                      >
+                        Выйти
+                      </Button>
+                    </motion.div>
+                  </>
+                ) : (
+                  <>
+                    <motion.div variants={itemVariants}>
+                      <Nav.Link as={Link} to="/login" onClick={() => setExpanded(false)}>
+                        Войти
+                      </Nav.Link>
+                    </motion.div>
+                    <motion.div variants={itemVariants}>
+                      <Nav.Link as={Link} to="/register" onClick={() => setExpanded(false)}>
+                        Регистрация
+                      </Nav.Link>
+                    </motion.div>
+                  </>
+                )}
+              </Nav>
+            </motion.div>
+          </AnimatePresence>
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
   );
 }
 

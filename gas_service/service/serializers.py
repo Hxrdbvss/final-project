@@ -1,34 +1,46 @@
+# service/serializers.py
 from rest_framework import serializers
 from .models import UserProfile, ServiceRequest, Engineer, Location, Street
 
 class LocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Location
-        fields = ['id', 'name', 'city', 'streets']
+        fields = '__all__'
 
 class StreetSerializer(serializers.ModelSerializer):
     class Meta:
         model = Street
-        fields = ['id', 'name', 'location']
+        fields = '__all__'
+
+class EngineerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Engineer
+        fields = '__all__'
+
+class ServiceRequestSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ServiceRequest
+        fields = '__all__'
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    location = LocationSerializer(read_only=True)  # Вложенный сериализатор для location
+    full_name = serializers.CharField(max_length=255)  # Разрешаем редактирование
+    email = serializers.EmailField(source='user.email')
 
     class Meta:
         model = UserProfile
-        fields = ['id', 'full_name', 'phone', 'address', 'location']
+        fields = ['full_name', 'email', 'phone', 'address']
 
-class EngineerSerializer(serializers.ModelSerializer):
-    location = LocationSerializer(read_only=True)  # Вложенный сериализатор для location
+    def update(self, instance, validated_data):
+        # Обновляем email пользователя
+        if 'user' in validated_data:
+            user_data = validated_data.pop('user')
+            if 'email' in user_data:
+                instance.user.email = user_data['email']
+                instance.user.save()
 
-    class Meta:
-        model = Engineer
-        fields = ['id', 'full_name', 'phone', 'email', 'address', 'location', 'is_available', 'work_start_time', 'work_end_time', 'schedule_type', 'schedule_start_date']
-
-class ServiceRequestSerializer(serializers.ModelSerializer):
-    location = LocationSerializer(read_only=True)  # Вложенный сериализатор для location
-    engineer = EngineerSerializer(read_only=True)  # Вложенный сериализатор для engineer
-
-    class Meta:
-        model = ServiceRequest
-        fields = ['id', 'full_name', 'email', 'phone', 'address', 'equipment_type', 'request_date', 'status', 'location', 'engineer']
+        # Обновляем остальные поля профиля
+        instance.full_name = validated_data.get('full_name', instance.full_name)
+        instance.phone = validated_data.get('phone', instance.phone)
+        instance.address = validated_data.get('address', instance.address)
+        instance.save()
+        return instance

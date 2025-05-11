@@ -33,12 +33,29 @@ class StreetViewSet(viewsets.ModelViewSet):
 class UserProfileViewSet(viewsets.ModelViewSet):
     serializer_class = UserProfileSerializer
     permission_classes = [IsAuthenticated]
+    queryset = UserProfile.objects.all()  # Базовый queryset
 
     def get_queryset(self):
         return UserProfile.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def list(self, request, *args, **kwargs):
+        profile = self.get_queryset().first()
+        if not profile:
+            return Response({'detail': 'Профиль не найден'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(profile)
+        return Response(serializer.data)
+
+    def update(self, request, *args, **kwargs):
+        profile = self.get_queryset().first()
+        if not profile:
+            return Response({'detail': 'Профиль не найден'}, status=status.HTTP_404_NOT_FOUND)
+        serializer = self.get_serializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 class EngineerViewSet(viewsets.ModelViewSet):
     queryset = Engineer.objects.all()
@@ -48,6 +65,7 @@ class EngineerViewSet(viewsets.ModelViewSet):
 class ServiceRequestViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceRequestSerializer
     permission_classes = [IsAuthenticated]
+    queryset = ServiceRequest.objects.all()  # Добавляем базовый queryset
 
     def get_queryset(self):
         return ServiceRequest.objects.filter(user=self.request.user)
@@ -70,7 +88,7 @@ def api_register(request):
         return Response({'detail': 'Пользователь с таким именем уже существует'}, status=status.HTTP_400_BAD_REQUEST)
 
     user = User.objects.create_user(username=username, password=password, email=email)
-    UserProfile.objects.create(user=user)
+    UserProfile.objects.get_or_create(user=user)
     return Response({'detail': 'Пользователь успешно создан'}, status=status.HTTP_201_CREATED)
 
 @login_required
@@ -163,7 +181,7 @@ def register(request):
         form = UserRegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
-            UserProfile.objects.create(user=user)
+            UserProfile.objects.get_or_create(user=user)
             username = form.cleaned_data.get('username')
             messages.success(request, f'Аккаунт создан для {username}! Теперь вы можете войти.')
             return redirect('login')
@@ -206,10 +224,7 @@ def profile(request):
 
 @login_required
 def cancel_request(request, request_id):
-    # Находим заявку и проверяем, что она принадлежит текущему пользователю
     service_request = get_object_or_404(ServiceRequest, id=request_id, user=request.user)
-    
-    # Удаляем заявку
     service_request.delete()
     messages.success(request, 'Заявка успешно отменена.')
     return redirect('profile')
