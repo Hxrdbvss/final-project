@@ -34,9 +34,11 @@ class StreetSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
+    engineer_name = serializers.CharField(source='engineer.full_name', read_only=True, allow_null=True)  # Новое поле для ФИО инженера
+
     class Meta:
         model = ServiceRequest
-        fields = '__all__'
+        fields = ['id', 'user', 'full_name', 'phone', 'address', 'equipment_type', 'request_date', 'scheduled_time', 'status', 'engineer', 'engineer_name']
         read_only_fields = ['id', 'user', 'request_date', 'status', 'engineer']
 
     def create(self, validated_data):
@@ -44,29 +46,24 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         validated_data['user'] = request.user if request else None
         instance = super().create(validated_data)
 
-        # Обновляем профиль пользователя
         profile, created = UserProfile.objects.get_or_create(user=request.user)
         profile.full_name = validated_data.get('full_name', profile.full_name)
-        profile.email = validated_data.get('email', profile.email)
         profile.phone = validated_data.get('phone', profile.phone)
         profile.address = validated_data.get('address', profile.address)
         profile.save()
 
-        # Уведомление пользователю
         send_notification(
-            instance.email,
+            request.user.email,
             'Новая заявка создана',
             f'Ваша заявка #{instance.id} на {instance.equipment_type} создана. Статус: {instance.status}.'
         )
-        # Уведомление инженеру, если назначен
-        if instance.engineer:
+        if instance.engineer and hasattr(instance.engineer, 'email') and instance.engineer.email:
             send_notification(
                 instance.engineer.email,
                 'Новая заявка назначена',
                 f'Вам назначена заявка #{instance.id} на {instance.scheduled_time}.'
             )
 
-        # Назначение инженера
         if instance.scheduled_time:
             scheduled_time = instance.scheduled_time
             scheduled_date = scheduled_time.date()
@@ -111,22 +108,19 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         old_status = instance.status
         instance = super().update(instance, validated_data)
 
-        # Обновляем профиль пользователя
         profile, created = UserProfile.objects.get_or_create(user=instance.user)
         profile.full_name = validated_data.get('full_name', profile.full_name)
-        profile.email = validated_data.get('email', profile.email)
         profile.phone = validated_data.get('phone', profile.phone)
         profile.address = validated_data.get('address', profile.address)
         profile.save()
 
-        # Уведомление, если статус изменился
         if instance.status != old_status:
             send_notification(
-                instance.email,
+                instance.user.email,
                 'Статус заявки изменён',
                 f'Статус вашей заявки #{instance.id} изменён на {instance.status}.'
             )
-            if instance.engineer and instance.status in ['APPROVED', 'COMPLETED']:
+            if instance.engineer and hasattr(instance.engineer, 'email') and instance.engineer.email:
                 send_notification(
                     instance.engineer.email,
                     'Обновление заявки',

@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getRequests, cancelRequest } from '../services/api';
 import { Button, Modal, Form, ListGroup } from 'react-bootstrap';
 import { toast } from 'react-toastify';
 import { ClipLoader } from 'react-spinners';
-import { FaFilter, FaSearch, FaSort, FaDownload } from 'react-icons/fa';
+import { FaSearch, FaSort, FaDownload } from 'react-icons/fa';
 import { saveAs } from 'file-saver';
 import ReactPaginate from 'react-paginate';
 import { motion } from 'framer-motion';
@@ -24,15 +25,26 @@ function RequestList() {
   const [currentPage, setCurrentPage] = useState(0);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const requestsPerPage = 5;
+  const navigate = useNavigate();
+
+  const statusLabels = {
+    PENDING: 'Ожидание',
+    APPROVED: 'Одобрено',
+    REJECTED: 'Отклонено',
+    COMPLETED: 'Завершено',
+  };
 
   useEffect(() => {
     const fetchRequests = async () => {
       try {
-        const data = await getRequests();
-        setRequests(data);
+        const response = await getRequests();
+        console.log('API response:', response);
+        setRequests(Array.isArray(response) ? response : []);
       } catch (err) {
+        console.error('Error fetching requests:', err);
         setError('Ошибка при загрузке заявок');
         toast.error('Не удалось загрузить заявки.', { position: 'top-right' });
+        setRequests([]);
       } finally {
         setLoading(false);
       }
@@ -49,7 +61,7 @@ function RequestList() {
     setShowModal(false);
     try {
       await cancelRequest(selectedRequestId);
-      setRequests(requests.filter(req => req.id !== selectedRequestId));
+      setRequests(requests.filter((req) => req.id !== selectedRequestId));
       toast.success('Заявка успешно отменена!', { position: 'top-right' });
     } catch (err) {
       setError('Ошибка при отмене заявки');
@@ -70,10 +82,14 @@ function RequestList() {
     const value = e.target.value;
     setSearchTerm(value);
 
-    if (value.length > 0) {
+    if (value.length > 0 && Array.isArray(requests)) {
       const filteredSuggestions = requests
-        .flatMap(req => [req.full_name, req.email, req.equipment_type, req.engineer || ''])
-        .filter(item => item && item.toLowerCase().includes(value.toLowerCase()))
+        .flatMap((req) => [
+          req.full_name,
+          req.equipment_type,
+          req.engineer_name || '',
+        ])
+        .filter((item) => item && item.toLowerCase().includes(value.toLowerCase()))
         .filter((item, index, self) => self.indexOf(item) === index)
         .slice(0, 5);
       setSuggestions(filteredSuggestions);
@@ -89,56 +105,96 @@ function RequestList() {
     setShowSuggestions(false);
   };
 
-  const filteredRequests = requests.filter(req => {
-    const matchesSearch = (req.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
-                         (req.email?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
-                         (req.equipment_type?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
-                         ((req.engineer || '').toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesStatus = statusFilter === 'all' || (req.status === statusFilter);
+  const handlePageClick = ({ selected }) => {
+    setCurrentPage(selected);
+  };
+
+  const filteredRequests = Array.isArray(requests) ? requests.filter((req) => {
+    const matchesSearch =
+      (req.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        req.equipment_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (req.engineer_name || '')
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()));
+    const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
     const requestDate = req.request_date ? new Date(req.request_date) : null;
     const startDate = dateRange.start ? new Date(dateRange.start) : null;
     const endDate = dateRange.end ? new Date(dateRange.end) : null;
-    const matchesDate = (!startDate || (requestDate && requestDate >= startDate)) && 
-                        (!endDate || (requestDate && requestDate <= endDate));
+    const matchesDate =
+      (!startDate || (requestDate && requestDate >= startDate)) &&
+      (!endDate || (requestDate && requestDate <= endDate));
 
+    console.log('Request:', req, 'Matches:', { matchesSearch, matchesStatus, matchesDate });
     return matchesSearch && matchesStatus && matchesDate;
-  });
+  }) : [];
 
   const sortedRequests = [...filteredRequests].sort((a, b) => {
-    const aValue = a[sortField] || '';
-    const bValue = b[sortField] || '';
+    const aValue =
+      sortField === 'scheduled_time' || sortField === 'request_date'
+        ? new Date(a[sortField] || 0)
+        : a[sortField] || '';
+    const bValue =
+      sortField === 'scheduled_time' || sortField === 'request_date'
+        ? new Date(b[sortField] || 0)
+        : b[sortField] || '';
     if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
     if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
     return 0;
   });
 
   const offset = currentPage * requestsPerPage;
-  const paginatedRequests = sortedRequests.slice(offset, offset + requestsPerPage);
+  const paginatedRequests = sortedRequests.slice(
+    offset,
+    offset + requestsPerPage
+  );
   const pageCount = Math.ceil(sortedRequests.length / requestsPerPage);
-
-  const handlePageClick = ({ selected }) => {
-    setCurrentPage(selected);
-  };
 
   const exportToCSV = () => {
     setExporting(true);
-    const headers = ['ID,ФИО,Email,Телефон,Адрес,Тип оборудования,Дата,Статус,Инженер,Время назначения\n'];
-    const rows = sortedRequests.map(req =>
-      `${req.id || ''},${req.full_name || ''},${req.email || ''},${req.phone || ''},${req.address || ''},${req.equipment_type || ''},${req.request_date || ''},${req.status || ''},${req.engineer || ''},${req.scheduledTime || ''}`
-    ).join('\n');
+    const headers = [
+      'ID,ФИО,Телефон,Адрес,Тип оборудования,Дата,Статус,Инженер,Время проведения\n',
+    ];
+    const rows = sortedRequests
+      .map((req) =>
+        [
+          req.id || '',
+          req.full_name || '',
+          req.phone || '',
+          req.address || '',
+          req.equipment_type || '',
+          req.request_date
+            ? new Date(req.request_date).toLocaleString('ru-RU')
+            : '',
+          statusLabels[req.status] || req.status || '',
+          req.engineer_name || '',
+          req.scheduled_time
+            ? new Date(req.scheduled_time).toLocaleString('ru-RU')
+            : '',
+        ]
+          .map((field) => `"${field}"`)
+          .join(',')
+      )
+      .join('\n');
     const csvContent = headers + rows;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     saveAs(blob, 'requests.csv');
     setTimeout(() => setExporting(false), 1000);
   };
 
-  if (loading) return (
-    <div className="text-center mt-5">
-      <ClipLoader color="#007bff" size={50} />
-      <p className="mt-2">Загрузка...</p>
-    </div>
-  );
+  if (loading)
+    return (
+      <div className="text-center mt-5">
+        <ClipLoader color="#007bff" size={50} />
+        <p className="mt-2">Загрузка...</p>
+      </div>
+    );
   if (error) return <div className="alert alert-danger mt-5">{error}</div>;
+  if (!requests.length)
+    return (
+      <div className="text-center mt-5">
+        <p>Заявок пока нет. <a href="/" onClick={() => navigate('/')}>Создать новую заявку</a>.</p>
+      </div>
+    );
 
   return (
     <div className="row justify-content-center">
@@ -155,7 +211,7 @@ function RequestList() {
               <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
                 <Form.Control
                   type="text"
-                  placeholder="Поиск по ФИО, Email, оборудованию или инженеру..."
+                  placeholder="Поиск по ФИО, оборудованию или инженеру..."
                   value={searchTerm}
                   onChange={handleSearchChange}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
@@ -171,7 +227,7 @@ function RequestList() {
                       right: 0,
                       zIndex: 1000,
                       maxHeight: '200px',
-                      overflowY: 'auto'
+                      overflowY: 'auto',
                     }}
                   >
                     {suggestions.map((suggestion, index) => (
@@ -195,19 +251,24 @@ function RequestList() {
                 <option value="PENDING">Ожидание</option>
                 <option value="APPROVED">Одобрено</option>
                 <option value="REJECTED">Отклонено</option>
+                <option value="COMPLETED">Завершено</option>
               </Form.Select>
               <Form.Control
                 type="date"
                 placeholder="Начальная дата"
                 value={dateRange.start}
-                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                onChange={(e) =>
+                  setDateRange({ ...dateRange, start: e.target.value })
+                }
                 className="w-100 w-md-auto"
               />
               <Form.Control
                 type="date"
                 placeholder="Конечная дата"
                 value={dateRange.end}
-                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                onChange={(e) =>
+                  setDateRange({ ...dateRange, end: e.target.value })
+                }
                 className="w-100 w-md-auto"
               />
               <motion.div whileHover={{ scale: 1.1 }}>
@@ -226,11 +287,6 @@ function RequestList() {
                   )}
                 </Button>
               </motion.div>
-              <motion.div whileHover={{ scale: 1.1 }}>
-                <Button variant="primary" className="w-100 w-md-auto">
-                  <FaFilter /> Фильтр
-                </Button>
-              </motion.div>
             </div>
             {filteredRequests.length ? (
               <motion.div
@@ -245,29 +301,25 @@ function RequestList() {
                         <th onClick={() => handleSort('full_name')}>
                           ФИО <FaSort />
                         </th>
-                        <th onClick={() => handleSort('email')}>
-                          Email <FaSort />
-                        </th>
                         <th onClick={() => handleSort('equipment_type')}>
                           Оборудование <FaSort />
                         </th>
                         <th onClick={() => handleSort('status')}>
                           Статус <FaSort />
                         </th>
-                        <th onClick={() => handleSort('engineer')}>
+                        <th onClick={() => handleSort('engineer_name')}>
                           Инженер <FaSort />
                         </th>
-                        <th onClick={() => handleSort('scheduledTime')}>
-                          Время назначения <FaSort />
+                        <th onClick={() => handleSort('scheduled_time')}>
+                          Время проведения <FaSort />
                         </th>
                         <th>Действия</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {paginatedRequests.map(request => (
+                      {paginatedRequests.map((request) => (
                         <tr key={request.id}>
                           <td>{request.full_name || '-'}</td>
-                          <td>{request.email || '-'}</td>
                           <td>{request.equipment_type || '-'}</td>
                           <td>
                             <span
@@ -276,36 +328,42 @@ function RequestList() {
                                   ? 'bg-success'
                                   : request.status === 'PENDING'
                                   ? 'bg-warning'
-                                  : 'bg-danger'
+                                  : request.status === 'REJECTED'
+                                  ? 'bg-danger'
+                                  : 'bg-secondary'
                               }`}
                             >
-                              {request.status || 'Не определён'}
+                              {statusLabels[request.status] || request.status || 'Не определён'}
                             </span>
                           </td>
-                          <td>{request.engineer || 'Не назначен'}</td>
-                          <td>{request.scheduledTime ? new Date(request.scheduledTime).toLocaleString() : 'Не задано'}</td>
+                          <td>{request.engineer_name || 'Не назначен'}</td>
                           <td>
-                          <motion.div whileHover={{ scale: 1.05 }}>
-                            <Button
-                              variant="primary"
-                              size="sm"
-                              onClick={() => navigate(`/edit-request/${request.id}`)}
-                              className="me-2"
-                              disabled={request.status === 'REJECTED' || request.status === 'COMPLETED'}
-                            >
-                              Редактировать
-                            </Button>
-                            <Button
-                              variant="danger"
-                              size="sm"
-                              onClick={() => handleCancel(request.id)}
-                              className="me-2"
-                              disabled={!request.status || request.status === 'REJECTED'}
-                            >
-                              Отменить
-                            </Button>
-                          </motion.div>
-                        </td>
+                            {request.scheduled_time
+                              ? new Date(request.scheduled_time).toLocaleString('ru-RU')
+                              : 'Не задано'}
+                          </td>
+                          <td>
+                            <motion.div whileHover={{ scale: 1.05 }}>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => navigate(`/edit-request/${request.id}`)}
+                                className="me-2"
+                                disabled={request.status === 'REJECTED' || request.status === 'COMPLETED'}
+                              >
+                                Редактировать
+                              </Button>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => handleCancel(request.id)}
+                                className="me-2"
+                                disabled={request.status === 'REJECTED' || request.status === 'COMPLETED'}
+                              >
+                                Отменить
+                              </Button>
+                            </motion.div>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -344,7 +402,7 @@ function RequestList() {
         </Modal.Header>
         <Modal.Body>Вы уверены, что хотите отменить эту заявку?</Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowModal(false)}>
+          <Button variant="secondary" onClick={() => setjavaxShowModal(false)}>
             Отмена
           </Button>
           <Button variant="danger" onClick={confirmCancel}>
