@@ -1,8 +1,7 @@
-// frontend/src/services/api.js
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api', // Прокси перенаправит на http://localhost:8000/api
+  baseURL: '/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -14,6 +13,7 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log('Request:', config.method, config.url, config.headers);
     return config;
   },
   (error) => Promise.reject(error)
@@ -39,6 +39,7 @@ api.interceptors.response.use(
         return Promise.reject(refreshError);
       }
     }
+    console.log('Response error:', error.response?.status, error.response?.data);
     return Promise.reject(error);
   }
 );
@@ -49,7 +50,8 @@ export const cancelRequest = (id) => api.delete(`/requests/${id}/`).then(res => 
 export const getProfile = () => api.get('/profile/').then(res => res.data);
 export const updateProfile = (data) => api.put('/profile/', data).then(res => res.data);
 export const loginUser = (credentials) => axios.post('/api/token/', credentials).then(res => res.data);
-export const registerUser = (data) => axios.post('/register/', data).then(res => res.data);
-// frontend/src/services/api.js
+export const registerUser = (data) => axios.post('/api/register/', data).then(res => res.data);
 export const updateRequest = (id, data) => api.put(`/requests/${id}/`, data).then(res => res.data);
+export const getLocations = () => api.get('/locations/').then(res => res.data);
+
 export default api;

@@ -34,13 +34,17 @@ class StreetSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
-    engineer_name = serializers.CharField(source='engineer.full_name', read_only=True, allow_null=True)  # Новое поле для ФИО инженера
+    engineer_name = serializers.CharField(source='engineer.full_name', read_only=True, allow_null=True)
+    scheduled_time = serializers.DateTimeField(format='%Y-%m-%d %H:%M', read_only=True)
 
     class Meta:
         model = ServiceRequest
-        fields = ['id', 'user', 'full_name', 'phone', 'address', 'equipment_type', 'request_date', 'scheduled_time', 'status', 'engineer', 'engineer_name']
-        read_only_fields = ['id', 'user', 'request_date', 'status', 'engineer']
-
+        fields = [
+            'id', 'user', 'full_name', 'email', 'phone', 'address', 'equipment_type',
+            'request_date', 'scheduled_time', 'status', 'engineer', 'engineer_name',
+            'location', 'preferred_date', 'preferred_time_of_day'
+        ]
+        read_only_fields = ['id', 'user', 'request_date', 'scheduled_time', 'status', 'engineer']
     def create(self, validated_data):
         request = self.context.get('request')
         validated_data['user'] = request.user if request else None

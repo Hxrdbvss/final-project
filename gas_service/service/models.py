@@ -1,4 +1,3 @@
-# service/models.py
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -59,10 +58,21 @@ class ServiceRequest(models.Model):
     address = models.TextField()
     equipment_type = models.CharField(max_length=100)
     request_date = models.DateTimeField(auto_now_add=True)
-    scheduled_time = models.DateTimeField(null=True, blank=True)  # Новое поле для времени выполнения заявки
+    scheduled_time = models.DateTimeField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
-    location = models.ForeignKey(Location, null=True, blank=True, on_delete=models.SET_NULL)
     engineer = models.ForeignKey(Engineer, null=True, blank=True, on_delete=models.SET_NULL)
+    location = models.ForeignKey(Location, null=True, blank=True, on_delete=models.SET_NULL)
+    preferred_date = models.DateField(null=True, blank=True)
+    preferred_time_of_day = models.CharField(
+        max_length=20,
+        choices=[
+            ('morning', 'Morning (9:00–12:00)'),
+            ('afternoon', 'Afternoon (12:00–15:00)'),
+            ('evening', 'Evening (15:00–18:00)'),
+        ],
+        null=True,
+        blank=True
+    )
 
     def __str__(self):
         return f"Заявка #{self.id} от {self.full_name}"

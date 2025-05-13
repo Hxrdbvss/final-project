@@ -1,140 +1,86 @@
-// frontend/src/components/NavBar.jsx
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Navbar, Nav, Container, Button } from 'react-bootstrap';
-import { FaGasPump, FaBars, FaTimes } from 'react-icons/fa';
-import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'react-toastify';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 
 function NavBar() {
-  const [expanded, setExpanded] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
-  const isAuthenticated = !!localStorage.getItem('access_token');
 
   const handleLogout = () => {
     localStorage.removeItem('access_token');
     localStorage.removeItem('refresh_token');
-    toast.success('Вы успешно вышли из аккаунта!', { position: 'top-right' });
     navigate('/login');
   };
 
   const toggleMenu = () => {
-    setExpanded(!expanded);
+    setIsOpen(!isOpen);
   };
-
-  const menuVariants = {
-    closed: {
-      height: 0,
-      opacity: 0,
-      transition: {
-        duration: 0.3,
-        when: 'afterChildren',
-      },
-    },
-    open: {
-      height: 'auto',
-      opacity: 1,
-      transition: {
-        duration: 0.3,
-        when: 'beforeChildren',
-        staggerChildren: 0.1,
-      },
-    },
-  };
-
-  const itemVariants = {
-    closed: { opacity: 0, y: -10 },
-    open: { opacity: 1, y: 0 },
-  };
-
-  const isDarkTheme = document.body.classList.contains('dark-theme');
 
   return (
-    <Navbar
-      className={`
-        bg-gradient shadow-md
-        ${isDarkTheme ? 'dark-theme' : ''}
-      `}
-      variant="dark"
-      expand="lg"
-      expanded={expanded}
+    <motion.nav
+      initial={{ opacity: 0, y: -20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="bg-gradient navbar navbar-expand-lg fixed-top"
     >
-      <Container fluid>
-        <Navbar.Brand as={Link} to="/" className="d-flex align-items-center">
-          <FaGasPump className="me-2" style={{ fontSize: '1.5rem', color: '#50e3c2' }} />
-          <span className="fw-bold text-white">Gas Service</span>
-        </Navbar.Brand>
-        <Navbar.Toggle
-          aria-controls="navbar-nav"
+      <div className="container-fluid px-4 sm:px-6 lg:px-8">
+        <NavLink className="navbar-brand text-white text-lg sm:text-xl" to="/">
+          Gas Service
+        </NavLink>
+        <button
+          className="navbar-toggler text-white"
+          type="button"
           onClick={toggleMenu}
-          className="border-0"
+          aria-controls="navbarNav"
+          aria-expanded={isOpen}
+          aria-label="Toggle navigation"
         >
-          {expanded ? (
-            <FaTimes size={24} className="text-white" />
-          ) : (
-            <FaBars size={24} className="text-white" />
-          )}
-        </Navbar.Toggle>
-        <Navbar.Collapse id="navbar-nav" className="justify-content-end">
-          <AnimatePresence>
-            <motion.div
-              initial="closed"
-              animate={expanded ? 'open' : 'closed'}
-              exit="closed"
-              variants={menuVariants}
-              className="w-100"
-            >
-              <Nav className="ms-auto">
-                {isAuthenticated ? (
-                  <>
-                    <motion.div variants={itemVariants}>
-                      <Nav.Link as={Link} to="/" onClick={() => setExpanded(false)}>
-                        Создать заявку
-                      </Nav.Link>
-                    </motion.div>
-                    <motion.div variants={itemVariants}>
-                      <Nav.Link as={Link} to="/requests" onClick={() => setExpanded(false)}>
-                        Мои заявки
-                      </Nav.Link>
-                    </motion.div>
-                    <motion.div variants={itemVariants}>
-                      <Nav.Link as={Link} to="/profile" onClick={() => setExpanded(false)}>
-                        Профиль
-                      </Nav.Link>
-                    </motion.div>
-                    <motion.div variants={itemVariants} className="d-flex align-items-center">
-                      <Button
-                        variant="outline-light"
-                        onClick={() => {
-                          handleLogout();
-                          setExpanded(false);
-                        }}
-                        className="ms-2"
-                      >
-                        Выйти
-                      </Button>
-                    </motion.div>
-                  </>
-                ) : (
-                  <>
-                    <motion.div variants={itemVariants}>
-                      <Nav.Link as={Link} to="/login" onClick={() => setExpanded(false)}>
-                        Войти
-                      </Nav.Link>
-                    </motion.div>
-                    <motion.div variants={itemVariants}>
-                      <Nav.Link as={Link} to="/register" onClick={() => setExpanded(false)}>
-                        Регистрация
-                      </Nav.Link>
-                    </motion.div>
-                  </>
-                )}
-              </Nav>
-            </motion.div>
-          </AnimatePresence>
-        </Navbar.Collapse>
-      </Container>
-    </Navbar>
+          <span className="navbar-toggler-icon"></span>
+        </button>
+        <div className={`collapse navbar-collapse ${isOpen ? 'show' : ''}`} id="navbarNav">
+          <ul className="navbar-nav ms-auto space-x-2 sm:space-x-4">
+            <li className="nav-item">
+              <NavLink
+                to="/"
+                className="nav-link text-sm sm:text-base py-2 px-3 rounded-md"
+                activeClassName="active"
+                onClick={() => setIsOpen(false)}
+              >
+                Главная
+              </NavLink>
+            </li>
+            <li className="nav-item">
+              <NavLink
+                to="/requests"
+                className="nav-link text-sm sm:text-base py-2 px-3 rounded-md"
+                activeClassName="active"
+                onClick={() => setIsOpen(false)}
+              >
+                Заявки
+              </NavLink>
+            </li>
+            <li className="nav-item">
+              <NavLink
+                to="/profile"
+                className="nav-link text-sm sm:text-base py-2 px-3 rounded-md"
+                activeClassName="active"
+                onClick={() => setIsOpen(false)}
+              >
+                Профиль
+              </NavLink>
+            </li>
+            <li className="nav-item">
+              <button
+                onClick={handleLogout}
+                className="btn-primary text-sm sm:text-base py-2 px-4 mt-2 sm:mt-0 w-full sm:w-auto"
+              >
+                Выход
+              </button>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </motion.nav>
   );
 }
 
