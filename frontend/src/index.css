@@ -1,46 +1,32 @@
-/* frontend/src/index.css */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
   @keyframes fadeIn {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
-  @keyframes neonGlow {
-    0% { box-shadow: 0 0 5px #50e3c2, 0 0 10px #50e3c2; }
-    50% { box-shadow: 0 0 15px #50e3c2, 0 0 25px #50e3c2; }
-    100% { box-shadow: 0 0 5px #50e3c2, 0 0 10px #50e3c2; }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
   }
 
   :root {
-    --primary-color: #4a90e2;
-    --secondary-color: #6c757d;
-    --success-color: #28a745;
-    --danger-color: #dc3545;
-    --warning-color: #ffc107;
-    --font-family: 'Roboto', sans-serif;
-    --gradient-start: #4a90e2;
-    --gradient-end: #50e3c2;
+    --font-family-base: 'Roboto', sans-serif;
+    --font-family-heading: 'Poppins', sans-serif;
   }
 
   body.light-theme {
-    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
-    color: #333;
+    background: linear-gradient(135deg, #dfe9f3 0%, #f0f7ff 100%);
+    color: #2d3748;
     transition: all 0.3s ease;
   }
 
   body.dark-theme {
-    background: linear-gradient(135deg, #1a1f2b 0%, #2c3e50 100%);
-    color: #e9ecef;
+    background: linear-gradient(135deg, #1e2a38 0%, #2d3a4c 100%);
+    color: #e2e8f0;
     transition: all 0.3s ease;
   }
 
@@ -48,198 +34,6 @@
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
-    font-family: var(--font-family);
-  }
-
-  h1, h2, h3, h4, h5, h6 {
-    font-weight: 700;
-  }
-
-  /* Улучшенные стили карточек */
-  .card {
-    border-radius: 20px;
-    animation: fadeIn 0.5s ease-in-out;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(248, 249, 250, 0.2) 100%);
-    border: 1px solid rgba(80, 227, 194, 0.2);
-    backdrop-filter: blur(10px);
-    overflow: hidden;
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
-  }
-
-  .card.dark-theme {
-    background: linear-gradient(135deg, rgba(44, 62, 80, 0.1) 0%, rgba(26, 31, 43, 0.2) 100%);
-    border: 1px solid rgba(80, 227, 194, 0.1);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
-  }
-
-  .card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 15px 40px rgba(80, 227, 194, 0.3);
-  }
-
-  .card-title {
-    font-size: 1.75rem;
-    font-weight: 600;
-    color: var(--primary-color);
-    text-shadow: 0 0 5px rgba(80, 227, 194, 0.3);
-  }
-
-  /* Улучшенные стили кнопок */
-  .btn-primary {
-    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-    border: none;
-    border-radius: 10px;
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #fff;
-    transition: transform 0.2s ease, background 0.3s ease, box-shadow 0.3s ease;
-    box-shadow: 0 0 10px rgba(80, 227, 194, 0.5);
-    animation: neonGlow 2s infinite;
-  }
-
-  .btn-primary:hover {
-    transform: scale(1.1);
-    background: linear-gradient(135deg, #50e3c2, #4a90e2);
-    box-shadow: 0 0 20px rgba(80, 227, 194, 0.7);
-  }
-
-  .btn-danger {
-    background: linear-gradient(135deg, #dc3545, #c82333);
-    border: none;
-    border-radius: 10px;
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    font-weight: 600;
-    color: #fff;
-    transition: transform 0.2s ease, background 0.3s ease, box-shadow 0.3s ease;
-    box-shadow: 0 0 10px rgba(220, 53, 69, 0.5);
-    animation: neonGlow 2s infinite;
-  }
-
-  .btn-danger:hover {
-    transform: scale(1.1);
-    background: linear-gradient(135deg, #c82333, #dc3545);
-    box-shadow: 0 0 20px rgba(220, 53, 69, 0.7);
-  }
-
-  .table {
-    border-radius: 10px;
-    overflow: hidden;
-  }
-
-  .table thead th {
-    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-    color: #fff;
-    border: none;
-  }
-
-  .table tbody tr:hover {
-    background-color: #f1f3f5;
-    transition: background-color 0.2s ease;
-  }
-
-  .table.dark-theme tbody tr:hover {
-    background-color: #2a2f3a;
-  }
-
-  .pagination .page-link {
-    color: var(--primary-color);
-    border: none;
-    background: transparent;
-    transition: color 0.2s ease;
-  }
-
-  .pagination .page-link:hover,
-  .pagination .active .page-link {
-    color: #50e3c2;
-    background: transparent;
-  }
-
-  .custom-card-width {
-    max-width: 100%;
-    width: 100%;
-  }
-
-  /* Стили для NavBar */
-  .bg-gradient {
-    background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-    transition: all 0.3s ease;
-  }
-
-  .bg-gradient.dark-theme {
-    background: linear-gradient(135deg, #2c3e50, #1a1f2b);
-  }
-
-  .navbar-brand {
-    font-size: 1.5rem;
-    transition: color 0.3s ease;
-  }
-
-  .navbar-brand:hover {
-    color: #50e3c2 !important;
-  }
-
-  .nav-link {
-    color: #fff !important;
-    transition: color 0.3s ease, transform 0.2s ease;
-  }
-
-  .nav-link:hover {
-    color: #50e3c2 !important;
-  }
-
-  .dropdown-menu {
-    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
-    border: none;
-    border-radius: 10px;
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-  }
-
-  .dropdown-menu.dark-theme {
-    background: linear-gradient(135deg, #2c3e50 0%, #1a1f2b 100%);
-  }
-
-  .dropdown-item {
-    transition: background-color 0.2s ease;
-  }
-
-  .dropdown-item:hover {
-    background-color: #e9ecef !important;
-  }
-
-  .dropdown-item.dark-theme:hover {
-    background-color: #2a2f3a !important;
-  }
-
-  @media (max-width: 991px) {
-    .navbar-collapse {
-      background: linear-gradient(135deg, var(--gradient-start), var(--gradient-end));
-      padding: 1rem;
-      border-radius: 0 0 8px 8px;
-      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-    }
-
-    .navbar-collapse.dark-theme {
-      background: linear-gradient(135deg, #2c3e50, #1a1f2b);
-    }
-
-    .navbar-nav {
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .nav-link {
-      font-size: 1.1rem;
-      padding: 0.5rem 0 !important;
-      text-align: center;
-    }
-
-    .navbar-collapse .btn {
-      width: 100%;
-      text-align: center;
-    }
+    font-family: var(--font-family-base);
   }
 }

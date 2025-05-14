@@ -6,10 +6,10 @@ import NavBar from './components/NavBar';
 import RequestForm from './pages/RequestForm';
 import RequestList from './pages/RequestList';
 import Profile from './pages/Profile';
-import EditProfile from './pages/EditProfile'; // Импортируем новую страницу
+import EditProfile from './pages/EditProfile';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import { ThemeProvider } from './ThemeContext.jsx'; // Изменено с .js на .jsx
+import { ThemeProvider } from './ThemeContext.jsx';
 import EditRequest from './pages/EditRequest';
 
 function AnimatedRoutes() {
@@ -35,7 +35,7 @@ function AnimatedRoutes() {
           <Route
             path="/edit-profile"
             element={isAuthenticated ? <EditProfile /> : <Navigate to="/login" />}
-          /> {/* Новый маршрут */}
+          />
           <Route
             path="/edit-request/:id"
             element={isAuthenticated ? <EditRequest /> : <Navigate to="/login" />}
@@ -52,7 +52,7 @@ function App() {
   return (
     <ThemeProvider>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <div className="min-vh-100">
+        <div className="min-h-screen">
           <NavBar />
           <div className="container-fluid py-3 py-md-5">
             <AnimatedRoutes />

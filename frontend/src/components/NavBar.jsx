@@ -1,9 +1,9 @@
-import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { FaHome, FaList, FaUser, FaSignOutAlt } from 'react-icons/fa';
+import styles from './NavBar.module.css';
 
 function NavBar() {
-  const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -12,71 +12,60 @@ function NavBar() {
     navigate('/login');
   };
 
-  const toggleMenu = () => {
-    setIsOpen(!isOpen);
-  };
+  const navItems = [
+    { to: '/', label: 'Главная', icon: <FaHome className="text-lg" /> },
+    { to: '/requests', label: 'Заявки', icon: <FaList className="text-lg" /> },
+    { to: '/profile', label: 'Профиль', icon: <FaUser className="text-lg" /> },
+    { to: null, label: 'Выход', icon: <FaSignOutAlt className="text-lg" />, onClick: handleLogout },
+  ];
 
   return (
     <motion.nav
       initial={{ opacity: 0, y: -20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="bg-gradient navbar navbar-expand-lg fixed-top"
+      className={`${styles.nav} sm:flex fixed top-0 left-0 w-full z-50 shadow-lg`}
     >
-      <div className="container-fluid px-4 sm:px-6 lg:px-8">
-        <NavLink className="navbar-brand text-white text-lg sm:text-xl" to="/">
-          Gas Service
-        </NavLink>
-        <button
-          className="navbar-toggler text-white"
-          type="button"
-          onClick={toggleMenu}
-          aria-controls="navbarNav"
-          aria-expanded={isOpen}
-          aria-label="Toggle navigation"
-        >
-          <span className="navbar-toggler-icon"></span>
-        </button>
-        <div className={`collapse navbar-collapse ${isOpen ? 'show' : ''}`} id="navbarNav">
-          <ul className="navbar-nav ms-auto space-x-2 sm:space-x-4">
-            <li className="nav-item">
-              <NavLink
-                to="/"
-                className="nav-link text-sm sm:text-base py-2 px-3 rounded-md"
-                activeClassName="active"
-                onClick={() => setIsOpen(false)}
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 flex items-center py-4">
+        <div className="flex justify-between items-center w-full max-w-7xl mx-auto">
+          <NavLink
+            to="/"
+            className={`${styles.brand} text-white text-xl font-bold hover:text-teal-400 transition-colors`}
+          >
+            Gas Service
+          </NavLink>
+          <ul className="flex items-center space-x-8">
+            {navItems.map((item, index) => (
+              <motion.li
+                key={item.label || index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.1 * index, duration: 0.3 }}
+                className={styles.navItem}
               >
-                Главная
-              </NavLink>
-            </li>
-            <li className="nav-item">
-              <NavLink
-                to="/requests"
-                className="nav-link text-sm sm:text-base py-2 px-3 rounded-md"
-                activeClassName="active"
-                onClick={() => setIsOpen(false)}
-              >
-                Заявки
-              </NavLink>
-            </li>
-            <li className="nav-item">
-              <NavLink
-                to="/profile"
-                className="nav-link text-sm sm:text-base py-2 px-3 rounded-md"
-                activeClassName="active"
-                onClick={() => setIsOpen(false)}
-              >
-                Профиль
-              </NavLink>
-            </li>
-            <li className="nav-item">
-              <button
-                onClick={handleLogout}
-                className="btn-primary text-sm sm:text-base py-2 px-4 mt-2 sm:mt-0 w-full sm:w-auto"
-              >
-                Выход
-              </button>
-            </li>
+                {item.to ? (
+                  <NavLink
+                    to={item.to}
+                    className={({ isActive }) =>
+                      `${styles.navItem} flex items-center text-white text-base py-2 px-4 rounded-md hover:text-teal-400 transition-colors ${isActive ? 'active' : ''}`
+                    }
+                  >
+                    {item.icon}
+                    <span className="ml-2">{item.label}</span>
+                  </NavLink>
+                ) : (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={item.onClick}
+                    className={`${styles.navItem} flex items-center text-white text-base py-2 px-4 rounded-md`}
+                  >
+                    {item.icon}
+                    <span className="ml-2">{item.label}</span>
+                  </motion.button>
+                )}
+              </motion.li>
+            ))}
           </ul>
         </div>
       </div>

@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getRequests, cancelRequest } from '../services/api';
-import { Button, Modal, Form, ListGroup } from 'react-bootstrap';
 import { toast } from 'react-toastify';
+import { motion } from 'framer-motion';
 import { ClipLoader } from 'react-spinners';
-import { FaSearch, FaSort, FaDownload } from 'react-icons/fa';
+import { getRequests, cancelRequest } from '../services/api';
+import { FaFilter, FaSearch, FaDownload, FaTools, FaCalendarAlt, FaClock, FaEdit, FaTrash } from 'react-icons/fa';
 import { saveAs } from 'file-saver';
 import ReactPaginate from 'react-paginate';
-import { motion } from 'framer-motion';
+import styles from './RequestList.module.css';
 
 function RequestList() {
   const [requests, setRequests] = useState([]);
@@ -19,11 +19,10 @@ function RequestList() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [sortField, setSortField] = useState('full_name');
-  const [sortOrder, setSortOrder] = useState('asc');
   const [exporting, setExporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
   const requestsPerPage = 5;
   const navigate = useNavigate();
 
@@ -66,15 +65,6 @@ function RequestList() {
     } catch (err) {
       setError('Ошибка при отмене заявки');
       toast.error('Ошибка при отмене заявки', { position: 'top-right' });
-    }
-  };
-
-  const handleSort = (field) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortField(field);
-      setSortOrder('asc');
     }
   };
 
@@ -124,37 +114,19 @@ function RequestList() {
       (!startDate || (requestDate && requestDate >= startDate)) &&
       (!endDate || (requestDate && requestDate <= endDate));
 
-    console.log('Request:', req, 'Matches:', { matchesSearch, matchesStatus, matchesDate });
     return matchesSearch && matchesStatus && matchesDate;
   }) : [];
 
-  const sortedRequests = [...filteredRequests].sort((a, b) => {
-    const aValue =
-      sortField === 'scheduled_time' || sortField === 'request_date'
-        ? new Date(a[sortField] || 0)
-        : a[sortField] || '';
-    const bValue =
-      sortField === 'scheduled_time' || sortField === 'request_date'
-        ? new Date(b[sortField] || 0)
-        : b[sortField] || '';
-    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
-    return 0;
-  });
-
   const offset = currentPage * requestsPerPage;
-  const paginatedRequests = sortedRequests.slice(
-    offset,
-    offset + requestsPerPage
-  );
-  const pageCount = Math.ceil(sortedRequests.length / requestsPerPage);
+  const paginatedRequests = filteredRequests.slice(offset, offset + requestsPerPage);
+  const pageCount = Math.ceil(filteredRequests.length / requestsPerPage);
 
   const exportToCSV = () => {
     setExporting(true);
     const headers = [
       'ID,ФИО,Телефон,Адрес,Тип оборудования,Дата,Статус,Инженер,Время проведения\n',
     ];
-    const rows = sortedRequests
+    const rows = filteredRequests
       .map((req) =>
         [
           req.id || '',
@@ -181,235 +153,319 @@ function RequestList() {
     setTimeout(() => setExporting(false), 1000);
   };
 
-  if (loading)
+  if (loading) {
     return (
-      <div className="text-center mt-5">
-        <ClipLoader color="#007bff" size={50} />
-        <p className="mt-2">Загрузка...</p>
+      <div className="min-h-screen flex items-center justify-center">
+        <ClipLoader color="#4a90e2" size={50} />
       </div>
     );
-  if (error) return <div className="alert alert-danger mt-5">{error}</div>;
-  if (!requests.length)
+  }
+
+  if (error) {
     return (
-      <div className="text-center mt-5">
-        <p>Заявок пока нет. <a href="/" onClick={() => navigate('/')}>Создать новую заявку</a>.</p>
+      <div className="min-h-screen pt-24 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className={`${styles.card} p-4 sm:p-6 text-center`}>
+          <p className="text-red-600 dark:text-red-400">{error}</p>
+        </div>
       </div>
     );
+  }
+
+  if (!requests.length) {
+    return (
+      <div className="min-h-screen pt-24 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className={`${styles.card} p-4 sm:p-6 text-center`}>
+          <h2 className={`${styles.cardTitle} text-2xl sm:text-3xl`}>Список заявок</h2>
+          <p className="text-gray-600 dark:text-gray-300 mt-4">
+            Заявок пока нет.{' '}
+            <button
+              onClick={() => navigate('/')}
+              className="text-blue-600 dark:text-blue-400 underline"
+            >
+              Создать новую заявку
+            </button>
+            .
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="row justify-content-center">
-      <div className="col-12">
+    <div className={`${styles.pageWrapper}`}>
+      <div className="max-w-4xl mx-auto pt-24 px-4 sm:px-6 lg:px-8 relative">
         <motion.div
-          className="card shadow-sm custom-card-width"
-          initial={{ opacity: 0, y: 50 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
+          className={`${styles.container}`}
         >
-          <div className="card-body">
-            <h2 className="card-title mb-4">Ваши заявки</h2>
-            <div className="d-flex flex-column flex-md-row gap-3 mb-4 position-relative">
-              <div style={{ position: 'relative', width: '100%', maxWidth: '300px' }}>
-                <Form.Control
-                  type="text"
-                  placeholder="Поиск по ФИО, оборудованию или инженеру..."
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-                  onFocus={() => searchTerm.length > 0 && setShowSuggestions(true)}
-                  className="w-100 w-md-auto"
-                />
-                {showSuggestions && suggestions.length > 0 && (
-                  <ListGroup
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      right: 0,
-                      zIndex: 1000,
-                      maxHeight: '200px',
-                      overflowY: 'auto',
-                    }}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className={`${styles.cardTitle} text-2xl sm:text-3xl`}>Список заявок</h2>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowFilterPanel(true)}
+              className={`${styles.filterBtn}`}
+            >
+              <FaFilter /> Фильтры
+            </motion.button>
+          </div>
+
+          <div className={`${styles.searchWrapper} mb-6`}>
+            <FaSearch className={`${styles.inputIcon}`} />
+            <input
+              type="text"
+              placeholder="Поиск по ФИО, оборудованию или инженеру..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+              onFocus={() => searchTerm.length > 0 && setShowSuggestions(true)}
+              className={`${styles.formInput}`}
+            />
+            {showSuggestions && suggestions.length > 0 && (
+              <ul className={`${styles.suggestions}`}>
+                {suggestions.map((suggestion, index) => (
+                  <li
+                    key={index}
+                    onClick={() => handleSuggestionClick(suggestion)}
+                    className={`${styles.suggestionItem}`}
                   >
-                    {suggestions.map((suggestion, index) => (
-                      <ListGroup.Item
-                        key={index}
-                        action
-                        onClick={() => handleSuggestionClick(suggestion)}
-                      >
-                        {suggestion}
-                      </ListGroup.Item>
-                    ))}
-                  </ListGroup>
-                )}
-              </div>
-              <Form.Select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-100 w-md-auto"
-              >
-                <option value="all">Все статусы</option>
-                <option value="PENDING">Ожидание</option>
-                <option value="APPROVED">Одобрено</option>
-                <option value="REJECTED">Отклонено</option>
-                <option value="COMPLETED">Завершено</option>
-              </Form.Select>
-              <Form.Control
-                type="date"
-                placeholder="Начальная дата"
-                value={dateRange.start}
-                onChange={(e) =>
-                  setDateRange({ ...dateRange, start: e.target.value })
-                }
-                className="w-100 w-md-auto"
-              />
-              <Form.Control
-                type="date"
-                placeholder="Конечная дата"
-                value={dateRange.end}
-                onChange={(e) =>
-                  setDateRange({ ...dateRange, end: e.target.value })
-                }
-                className="w-100 w-md-auto"
-              />
-              <motion.div whileHover={{ scale: 1.1 }}>
-                <Button
-                  variant="primary"
-                  className="w-100 w-md-auto"
-                  onClick={exportToCSV}
-                  disabled={exporting}
-                >
-                  {exporting ? (
-                    <ClipLoader color="#ffffff" size={14} />
-                  ) : (
-                    <>
-                      <FaDownload /> Экспорт CSV
-                    </>
-                  )}
-                </Button>
-              </motion.div>
-            </div>
-            {filteredRequests.length ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: 0.2 }}
-              >
-                <div className="table-responsive">
-                  <table className="table table-striped table-hover">
-                    <thead className="thead-dark">
-                      <tr>
-                        <th onClick={() => handleSort('full_name')}>
-                          ФИО <FaSort />
-                        </th>
-                        <th onClick={() => handleSort('equipment_type')}>
-                          Оборудование <FaSort />
-                        </th>
-                        <th onClick={() => handleSort('status')}>
-                          Статус <FaSort />
-                        </th>
-                        <th onClick={() => handleSort('engineer_name')}>
-                          Инженер <FaSort />
-                        </th>
-                        <th onClick={() => handleSort('scheduled_time')}>
-                          Время проведения <FaSort />
-                        </th>
-                        <th>Действия</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedRequests.map((request) => (
-                        <tr key={request.id}>
-                          <td>{request.full_name || '-'}</td>
-                          <td>{request.equipment_type || '-'}</td>
-                          <td>
-                            <span
-                              className={`badge ${
-                                request.status === 'APPROVED'
-                                  ? 'bg-success'
-                                  : request.status === 'PENDING'
-                                  ? 'bg-warning'
-                                  : request.status === 'REJECTED'
-                                  ? 'bg-danger'
-                                  : 'bg-secondary'
-                              }`}
-                            >
-                              {statusLabels[request.status] || request.status || 'Не определён'}
-                            </span>
-                          </td>
-                          <td>{request.engineer_name || 'Не назначен'}</td>
-                          <td>
-                            {request.scheduled_time
-                              ? new Date(request.scheduled_time).toLocaleString('ru-RU')
-                              : 'Не задано'}
-                          </td>
-                          <td>
-                            <motion.div whileHover={{ scale: 1.05 }}>
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => navigate(`/edit-request/${request.id}`)}
-                                className="me-2"
-                                disabled={request.status === 'REJECTED' || request.status === 'COMPLETED'}
-                              >
-                                Редактировать
-                              </Button>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() => handleCancel(request.id)}
-                                className="me-2"
-                                disabled={request.status === 'REJECTED' || request.status === 'COMPLETED'}
-                              >
-                                Отменить
-                              </Button>
-                            </motion.div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <ReactPaginate
-                  previousLabel={'←'}
-                  nextLabel={'→'}
-                  breakLabel={'...'}
-                  pageCount={pageCount}
-                  marginPagesDisplayed={2}
-                  pageRangeDisplayed={3}
-                  onPageChange={handlePageClick}
-                  containerClassName={'pagination justify-content-center mt-4'}
-                  activeClassName={'active'}
-                  pageClassName={'page-item'}
-                  pageLinkClassName={'page-link'}
-                  previousClassName={'page-item'}
-                  previousLinkClassName={'page-link'}
-                  nextClassName={'page-item'}
-                  nextLinkClassName={'page-link'}
-                  breakClassName={'page-item'}
-                  breakLinkClassName={'page-link'}
-                />
-              </motion.div>
-            ) : (
-              <p className="text-center">Заявок не найдено.</p>
+                    {suggestion}
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
-        </motion.div>
-      </div>
 
-      <Modal show={showModal} onHide={() => setShowModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Подтверждение</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>Вы уверены, что хотите отменить эту заявку?</Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setjavaxShowModal(false)}>
-            Отмена
-          </Button>
-          <Button variant="danger" onClick={confirmCancel}>
-            Подтвердить
-          </Button>
-        </Modal.Footer>
-      </Modal>
+          {filteredRequests.length ? (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.5, delay: 0.2 }}
+            >
+              <div className="space-y-4">
+                {paginatedRequests.map((request) => (
+                  <motion.div
+                    key={request.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className={`${styles.card}`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                      <div className="space-y-1">
+                        <div className="flex items-center">
+                          <FaTools className={`${styles.icon}`} />
+                          <span className={`${styles.cardText}`}>
+                            {request.equipment_type || '-'}
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          <FaCalendarAlt className={`${styles.icon}`} />
+                          <span className={`${styles.cardText}`}>
+                            {request.request_date
+                              ? new Date(request.request_date).toLocaleDateString('ru-RU')
+                              : 'Не задано'}
+                          </span>
+                        </div>
+                        <div className="flex items-center">
+                          <FaClock className={`${styles.icon}`} />
+                          <span className={`${styles.cardText}`}>
+                            {request.scheduled_time
+                              ? new Date(request.scheduled_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+                              : 'Не задано'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-1 text-right">
+                        <div className="flex justify-end">
+                          <span className={`${styles.statusBadge} ${
+                            request.status === 'APPROVED' ? styles.statusApproved :
+                            request.status === 'PENDING' ? styles.statusPending :
+                            request.status === 'REJECTED' ? styles.statusRejected :
+                            styles.statusCompleted
+                          }`}>
+                            {statusLabels[request.status] || request.status || 'Не определён'}
+                          </span>
+                        </div>
+                        <div className={`${styles.cardText}`}>
+                          Инженер: {request.engineer_name || 'Не назначен'}
+                        </div>
+                        <div className="flex justify-end space-x-2 mt-2">
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => navigate(`/edit-request/${request.id}`)}
+                            disabled={request.status === 'REJECTED' || request.status === 'COMPLETED'}
+                            className={`${styles.actionBtn} ${styles.editBtn}`}
+                            title="Редактировать"
+                          >
+                            <FaEdit />
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleCancel(request.id)}
+                            disabled={request.status === 'REJECTED' || request.status === 'COMPLETED'}
+                            className={`${styles.actionBtn} ${styles.deleteBtn}`}
+                            title="Отменить"
+                          >
+                            <FaTrash />
+                          </motion.button>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+              <ReactPaginate
+                previousLabel={'←'}
+                nextLabel={'→'}
+                breakLabel={'...'}
+                pageCount={pageCount}
+                marginPagesDisplayed={2}
+                pageRangeDisplayed={3}
+                onPageChange={handlePageClick}
+                containerClassName={`${styles.pagination}`}
+                activeClassName={`${styles.active}`}
+                pageClassName={`${styles.pageItem}`}
+                pageLinkClassName={`${styles.pageLink}`}
+                previousClassName={`${styles.pageItem}`}
+                previousLinkClassName={`${styles.pageLink}`}
+                nextClassName={`${styles.pageItem}`}
+                nextLinkClassName={`${styles.pageLink}`}
+                breakClassName={`${styles.pageItem}`}
+                breakLinkClassName={`${styles.pageLink}`}
+              />
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={exportToCSV}
+                disabled={exporting}
+                className={`${styles.btnPrimary} mt-6 block mx-auto`}
+              >
+                {exporting ? (
+                  <ClipLoader color="#fff" size={14} />
+                ) : (
+                  <span className="flex items-center">
+                    <FaDownload className="mr-2" /> Экспорт CSV
+                  </span>
+                )}
+              </motion.button>
+            </motion.div>
+          ) : (
+            <p className="text-center text-gray-600 dark:text-gray-300">Заявок не найдено.</p>
+          )}
+        </motion.div>
+
+        {/* Выплывающее окно фильтров */}
+        {showFilterPanel && (
+          <div className={`${styles.filterOverlay}`}>
+            <motion.div
+              initial={{ opacity: 0, x: 300 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 300 }}
+              transition={{ duration: 0.3 }}
+              className={`${styles.filterPanel}`}
+            >
+              <div className={`${styles.filterHeader}`}>
+                <h5>Фильтры</h5>
+                <button onClick={() => setShowFilterPanel(false)} className={`${styles.closeBtn}`}>
+                  ×
+                </button>
+              </div>
+              <div className={`${styles.filterBody}`}>
+                <div className="mb-4">
+                  <label className={`${styles.formLabel}`}>Статус</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className={`${styles.formInput}`}
+                  >
+                    <option value="all">Все статусы</option>
+                    <option value="PENDING">Ожидание</option>
+                    <option value="APPROVED">Одобрено</option>
+                    <option value="REJECTED">Отклонено</option>
+                    <option value="COMPLETED">Завершено</option>
+                  </select>
+                </div>
+                <div className="mb-4">
+                  <label className={`${styles.formLabel}`}>Начальная дата</label>
+                  <input
+                    type="date"
+                    value={dateRange.start}
+                    onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                    className={`${styles.formInput}`}
+                  />
+                </div>
+                <div className="mb-4">
+                  <label className={`${styles.formLabel}`}>Конечная дата</label>
+                  <input
+                    type="date"
+                    value={dateRange.end}
+                    onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                    className={`${styles.formInput}`}
+                  />
+                </div>
+              </div>
+              <div className={`${styles.filterFooter}`}>
+                <button
+                  onClick={() => {
+                    setStatusFilter('all');
+                    setDateRange({ start: '', end: '' });
+                  }}
+                  className={`${styles.btnSecondary}`}
+                >
+                  Сбросить
+                </button>
+                <button
+                  onClick={() => setShowFilterPanel(false)}
+                  className={`${styles.btnPrimary}`}
+                >
+                  Применить
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {/* Модал для подтверждения отмены */}
+        {showModal && (
+          <div className={`${styles.modalOverlay}`}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className={`${styles.modal}`}
+            >
+              <div className={`${styles.modalHeader}`}>
+                <h5>Подтверждение</h5>
+                <button onClick={() => setShowModal(false)} className={`${styles.modalClose}`}>
+                  ×
+                </button>
+              </div>
+              <div className={`${styles.modalBody}`}>
+                Вы уверены, что хотите отменить эту заявку?
+              </div>
+              <div className={`${styles.modalFooter}`}>
+                <button
+                  onClick={() => setShowModal(false)}
+                  className={`${styles.btnSecondary}`}
+                >
+                  Отмена
+                </button>
+                <button
+                  onClick={confirmCancel}
+                  className={`${styles.btnDanger}`}
+                >
+                  Подтвердить
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
