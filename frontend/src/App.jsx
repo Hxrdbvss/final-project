@@ -8,13 +8,24 @@ import Profile from './pages/Profile';
 import EditProfile from './pages/EditProfile';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import AdminRequestList from './pages/AdminRequestList'; // Переименуем для ясности
+import CreateEngineer from './pages/CreateEngineer';
 import { ThemeProvider } from './ThemeContext.jsx';
-import EditRequest from './pages/EditRequest';
 import ErrorBoundary from './components/ErrorBoundary';
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, adminOnly = false }) {
   const isAuthenticated = !!localStorage.getItem('access_token');
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  const userRole = localStorage.getItem('user_role'); // Предполагаем, что роль хранится в localStorage после логина
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (adminOnly && userRole !== 'ADMIN') {
+    return <Navigate to="/profile" replace />;
+  }
+
+  return children;
 }
 
 function AnimatedRoutes() {
@@ -57,10 +68,18 @@ function AnimatedRoutes() {
             }
           />
           <Route
-            path="/edit-request/:id"
+            path="/request-list"
             element={
-              <ProtectedRoute>
-                <EditRequest />
+              <ProtectedRoute adminOnly={true}>
+                <AdminRequestList />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/create-engineer"
+            element={
+              <ProtectedRoute adminOnly={true}>
+                <CreateEngineer />
               </ProtectedRoute>
             }
           />

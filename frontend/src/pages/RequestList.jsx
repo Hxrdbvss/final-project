@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getRequests, cancelRequest } from '../services/api';
+import { getRequests, cancelRequest, updateRequest } from '../services/api';
 import { toast } from 'react-toastify';
 import { ClipLoader } from 'react-spinners';
-import { FaSearch, FaSort, FaDownload } from 'react-icons/fa';
+import { FaSearch, FaSort, FaDownload, FaEdit } from 'react-icons/fa';
 import { saveAs } from 'file-saver';
 import ReactPaginate from 'react-paginate';
 import { motion } from 'framer-motion';
@@ -12,6 +12,9 @@ import Button from '../components/Button';
 import Input from '../components/Input';
 import Select from '../components/Select';
 import Modal from '../components/Modal';
+import DatePicker from 'react-date-picker';
+import 'react-date-picker/dist/DatePicker.css';
+import 'react-calendar/dist/Calendar.css';
 
 function RequestList() {
   const [requests, setRequests] = useState([]);
@@ -28,6 +31,9 @@ function RequestList() {
   const [exporting, setExporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [isEditingRequest, setIsEditingRequest] = useState(false);
+  const [editRequestData, setEditRequestData] = useState(null);
+  const [availableDates, setAvailableDates] = useState([]);
   const requestsPerPage = 5;
   const navigate = useNavigate();
 
@@ -36,6 +42,7 @@ function RequestList() {
     APPROVED: 'Одобрено',
     REJECTED: 'Отклонено',
     COMPLETED: 'Завершено',
+    CANCELLED: 'Отменено',
   };
 
   useEffect(() => {
@@ -54,28 +61,64 @@ function RequestList() {
     fetchRequests();
   }, []);
 
+  useEffect(() => {
+    const fetchAvailableDates = async () => {
+      try {
+        const response = await api.get('available-dates/', {
+          params: { time_of_day: editRequestData?.preferred_time_of_day || 'morning' }
+        });
+        setAvailableDates(response.data.available_dates.map(date => new Date(date)));
+      } catch (err) {
+        toast.error('Ошибка загрузки доступных дат.', { position: 'top-right' });
+      }
+    };
+    if (isEditingRequest) fetchAvailableDates();
+  }, [editRequestData?.preferred_time_of_day, isEditingRequest]);
+
   const handleCancel = (id) => {
-    console.log('handleCancel called with ID:', id); // Отладка
     setSelectedRequestId(id);
     setShowModal(true);
   };
 
   const confirmCancel = async () => {
-    console.log('confirmCancel called for ID:', selectedRequestId); // Отладка
     setShowModal(false);
     if (!selectedRequestId) {
       toast.error('ID заявки не определён.', { position: 'top-right' });
       return;
     }
     try {
-      const response = await cancelRequest(selectedRequestId);
-      console.log('cancelRequest response:', response); // Отладка
+      await cancelRequest(selectedRequestId);
       setRequests(requests.filter((req) => req.id !== selectedRequestId));
       toast.success('Заявка успешно отменена!', { position: 'top-right' });
     } catch (err) {
-      console.error('Error cancelling request:', err.response?.data || err.message); // Отладка
       setError('Ошибка при отмене заявки');
       toast.error('Ошибка при отмене заявки: ' + (err.response?.data?.message || err.message), { position: 'top-right' });
+    }
+  };
+
+  const handleEditRequest = (request) => {
+    setEditRequestData({
+      id: request.id,
+      preferred_time_of_day: request.preferred_time_of_day,
+      date: request.preferred_date ? new Date(request.preferred_date).toISOString() : '',
+      description: request.description || '',
+    });
+    setIsEditingRequest(true);
+  };
+
+  const handleUpdateRequest = async (e) => {
+    e.preventDefault();
+    try {
+      setLoading(true);
+      await updateRequest(editRequestData.id, { ...editRequestData, preferred_date: editRequestData.date.split('T')[0] });
+      setIsEditingRequest(false);
+      const requestsResponse = await getRequests();
+      setRequests(requestsResponse);
+      toast.success('Заявка успешно обновлена!', { position: 'top-right' });
+    } catch (err) {
+      toast.error(err.response?.data || 'Ошибка при обновлении заявки.', { position: 'top-right' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -262,6 +305,7 @@ function RequestList() {
                   { value: 'APPROVED', label: 'Одобрено' },
                   { value: 'REJECTED', label: 'Отклонено' },
                   { value: 'COMPLETED', label: 'Завершено' },
+                  { value: 'CANCELLED', label: 'Отменено' },
                 ]}
                 className="text-gray-900"
               />
@@ -363,6 +407,10 @@ function RequestList() {
                                   ? 'bg-yellow-100 text-yellow-800'
                                   : request.status === 'REJECTED'
                                   ? 'bg-red-100 text-red-800'
+                                  : request.status === 'COMPLETED'
+                                  ? 'bg-blue-100 text-blue-800'
+                                  : request.status === 'CANCELLED'
+                                  ? 'bg-gray-100 text-gray-800'
                                   : 'bg-gray-100 text-gray-800'
                               }`}
                             >
@@ -382,13 +430,13 @@ function RequestList() {
                               <Button
                                 variant="primary"
                                 size="sm"
-                                onClick={() => navigate(`/edit-request/${request.id}`)}
+                                onClick={() => handleEditRequest(request)}
                                 disabled={
-                                  request.status === 'REJECTED' || request.status === 'COMPLETED'
+                                  request.status === 'REJECTED' || request.status === 'COMPLETED' || request.status === 'CANCELLED'
                                 }
                                 className="bg-gray-800 text-white hover:bg-gray-900 focus:ring-gray-500"
                               >
-                                Редактировать
+                                <FaEdit className="inline mr-1" /> Редактировать
                               </Button>
                             </motion.div>
                             <motion.div whileHover={{ scale: 1.05 }}>
@@ -397,7 +445,7 @@ function RequestList() {
                                 size="sm"
                                 onClick={() => handleCancel(request.id)}
                                 disabled={
-                                  request.status === 'REJECTED' || request.status === 'COMPLETED'
+                                  request.status === 'REJECTED' || request.status === 'COMPLETED' || request.status === 'CANCELLED'
                                 }
                                 className="bg-gray-800 text-white hover:bg-gray-900 focus:ring-gray-500"
                               >
@@ -438,17 +486,76 @@ function RequestList() {
           </motion.div>
         </Card>
       </div>
+
       <Modal
-      show={showModal}
-      onHide={() => {
-        console.log('Закрываю модальное окно');
-        setShowModal(false);
-      }}
-      title="Подтверждение"
-      onConfirm={confirmCancel}
+        show={showModal}
+        onHide={() => setShowModal(false)}
+        title="Подтверждение"
+        onConfirm={confirmCancel}
       >
         Вы уверены, что хотите отменить эту заявку?
       </Modal>
+
+      {isEditingRequest && editRequestData && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+        >
+          <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow-lg w-full max-w-sm">
+            <h3 className="text-lg mb-4 text-gray-900 dark:text-gray-100">Редактировать заявку</h3>
+            <form onSubmit={handleUpdateRequest}>
+              <div className="mb-3">
+                <label className="block mb-1 text-gray-700 dark:text-gray-300">Выберите время дня</label>
+                <select
+                  name="preferred_time_of_day"
+                  value={editRequestData.preferred_time_of_day || 'morning'}
+                  onChange={(e) => setEditRequestData({ ...editRequestData, preferred_time_of_day: e.target.value })}
+                  className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="morning">Утро (9:00–12:00)</option>
+                  <option value="afternoon">День (12:00–15:00)</option>
+                  <option value="evening">Вечер (15:00–18:00)</option>
+                </select>
+              </div>
+              <div className="mb-3">
+                <label className="block mb-1 text-gray-700 dark:text-gray-300">Дата</label>
+                <DatePicker
+                  onChange={(date) => setEditRequestData({ ...editRequestData, date: date.toISOString() })}
+                  value={editRequestData.date ? new Date(editRequestData.date) : null}
+                  disabledDays={(date) => !availableDates.some(d => d.toDateString() === date.toDateString())}
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block mb-1 text-gray-700 dark:text-gray-300">Описание</label>
+                <textarea
+                  name="description"
+                  value={editRequestData.description}
+                  onChange={(e) => setEditRequestData({ ...editRequestData, description: e.target.value })}
+                  className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+                  required
+                />
+              </div>
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => setIsEditingRequest(false)}
+                  className="btn-secondary text-sm px-4 py-2 rounded-md"
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  className="btn-primary text-sm px-4 py-2 rounded-md"
+                  disabled={loading}
+                >
+                  {loading ? <ClipLoader color="#ffffff" size={20} /> : 'Сохранить'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

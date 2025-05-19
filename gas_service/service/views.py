@@ -1,7 +1,7 @@
 # service/views.py
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError  # Импортируем ValidationError
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -142,6 +142,25 @@ def is_working_day(engineer, date):
         # 2/2: 0 и 1 — рабочие дни, 2 и 3 — выходные
         return cycle_position in [0, 1]
     return True
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_engineer(request):
+    user_profile = UserProfile.objects.get(user=request.user)
+    if user_profile.role != 'ADMIN':
+        return Response({'detail': 'У вас нет прав для этой операции.'}, status=status.HTTP_403_FORBIDDEN)
+
+    serializer = EngineerSerializer(data=request.data)
+    if serializer.is_valid():
+        username = request.data.get('email').split('@')[0]  # Генерируем username из email
+        password = User.objects.make_random_password()  # Генерируем случайный пароль
+        user = User.objects.create_user(username=username, email=request.data.get('email'), password=password)
+        engineer_data = serializer.validated_data
+        engineer_data['user'] = user
+        engineer = serializer.create(engineer_data)
+        return Response(EngineerSerializer(engineer).data, status=status.HTTP_201_CREATED)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
 @csrf_exempt
 @api_view(['POST'])

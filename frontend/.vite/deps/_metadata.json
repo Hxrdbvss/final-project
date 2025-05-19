@@ -1,0 +1,100 @@
+{
+  "hash": "d75de229",
+  "configHash": "cdc3cea0",
+  "lockfileHash": "190c7849",
+  "browserHash": "13948433",
+  "optimized": {
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "7d23f183",
+      "needsInterop": true
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "0389e5cd",
+      "needsInterop": true
+    },
+    "react-toastify": {
+      "src": "../../node_modules/react-toastify/dist/index.mjs",
+      "file": "react-toastify.js",
+      "fileHash": "1d9ef51b",
+      "needsInterop": false
+    },
+    "react-router-dom": {
+      "src": "../../node_modules/react-router-dom/dist/index.js",
+      "file": "react-router-dom.js",
+      "fileHash": "1dd37684",
+      "needsInterop": false
+    },
+    "react-transition-group": {
+      "src": "../../node_modules/react-transition-group/esm/index.js",
+      "file": "react-transition-group.js",
+      "fileHash": "dedd9662",
+      "needsInterop": false
+    },
+    "framer-motion": {
+      "src": "../../node_modules/framer-motion/dist/es/index.mjs",
+      "file": "framer-motion.js",
+      "fileHash": "e88c2ee1",
+      "needsInterop": false
+    },
+    "lucide-react": {
+      "src": "../../node_modules/lucide-react/dist/esm/lucide-react.js",
+      "file": "lucide-react.js",
+      "fileHash": "c3b8e88f",
+      "needsInterop": false
+    },
+    "axios": {
+      "src": "../../node_modules/axios/index.js",
+      "file": "axios.js",
+      "fileHash": "34555424",
+      "needsInterop": false
+    },
+    "react-spinners": {
+      "src": "../../node_modules/react-spinners/esm/index.js",
+      "file": "react-spinners.js",
+      "fileHash": "e2eb1d7f",
+      "needsInterop": false
+    },
+    "react-icons/fa": {
+      "src": "../../node_modules/react-icons/fa/index.mjs",
+      "file": "react-icons_fa.js",
+      "fileHash": "f8aa9465",
+      "needsInterop": false
+    },
+    "file-saver": {
+      "src": "../../node_modules/file-saver/dist/FileSaver.min.js",
+      "file": "file-saver.js",
+      "fileHash": "da4f4f92",
+      "needsInterop": true
+    },
+    "react-paginate": {
+      "src": "../../node_modules/react-paginate/dist/react-paginate.js",
+      "file": "react-paginate.js",
+      "fileHash": "22d3dc0a",
+      "needsInterop": true
+    },
+    "prop-types": {
+      "src": "../../node_modules/prop-types/index.js",
+      "file": "prop-types.js",
+      "fileHash": "78338583",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-QGVADFPC": {
+      "file": "chunk-QGVADFPC.js"
+    },
+    "chunk-2TQQL6L7": {
+      "file": "chunk-2TQQL6L7.js"
+    },
+    "chunk-2PIBWAMS": {
+      "file": "chunk-2PIBWAMS.js"
+    },
+    "chunk-V4OQ3NZ2": {
+      "file": "chunk-V4OQ3NZ2.js"
+    }
+  }
+}

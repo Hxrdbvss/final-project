@@ -18,12 +18,17 @@ class Street(models.Model):
         return self.name
 
 class UserProfile(models.Model):
+    ROLE_CHOICES = (
+        ('USER', 'Пользователь'),
+        ('ADMIN', 'Администратор'),
+    )
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     full_name = models.CharField(max_length=255, blank=True)
     phone = models.CharField(max_length=15, blank=True)
     address = models.TextField(blank=True)
     location = models.ForeignKey(Location, null=True, blank=True, on_delete=models.SET_NULL)
-
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='USER')
+    
     def __str__(self):
         return self.full_name or self.user.username
 
@@ -39,7 +44,8 @@ class Engineer(models.Model):
     work_end_time = models.TimeField(default="18:00")
     schedule_type = models.CharField(max_length=10, default="2/2")  # Например, "2/2"
     schedule_start_date = models.DateField(default=timezone.now)
-
+    
+    
     def __str__(self):
         return self.full_name
 

@@ -8,7 +8,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserProfile
-        fields = ['id', 'user', 'full_name', 'email', 'phone', 'address', 'location']
+        fields = ['id', 'user', 'full_name', 'email', 'phone', 'address', 'location', 'role']
         read_only_fields = ['user', 'email']
 
     def to_representation(self, instance):
