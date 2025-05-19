@@ -141,6 +141,35 @@ MESSAGE_TAGS = {
 # URL для перенаправления неавторизованных пользователей
 LOGIN_URL = '/login/'
 
+# Настройки CORS
+CORS_ALLOW_ALL_ORIGINS = False  # Не разрешать доступ всем источникам
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",  # Разрешите запросы с вашего фронтенда
+]
+
+# Разрешите методы, которые использует ваш фронтенд
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'POST',
+    'PUT',
+    'PATCH',
+    'OPTIONS',
+]
+
+# Разрешите заголовки, которые использует ваш фронтенд (например, для авторизации)
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+
+]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # URL твоего React-приложения
 ]

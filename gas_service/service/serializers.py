@@ -1,4 +1,3 @@
-# service/serializers.py
 from rest_framework import serializers
 from .models import UserProfile, ServiceRequest, Engineer, Location, Street
 from django.utils import timezone
@@ -18,6 +17,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
         except Exception as e:
             print(f"Error in UserProfileSerializer: {e}")
             return {"error": "Failed to serialize profile"}
+
 class EngineerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Engineer
@@ -45,6 +45,7 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
             'location', 'preferred_date', 'preferred_time_of_day'
         ]
         read_only_fields = ['id', 'user', 'request_date', 'scheduled_time', 'status', 'engineer']
+    
     def create(self, validated_data):
         request = self.context.get('request')
         validated_data['user'] = request.user if request else None
@@ -55,18 +56,6 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         profile.phone = validated_data.get('phone', profile.phone)
         profile.address = validated_data.get('address', profile.address)
         profile.save()
-
-        send_notification(
-            request.user.email,
-            'Новая заявка создана',
-            f'Ваша заявка #{instance.id} на {instance.equipment_type} создана. Статус: {instance.status}.'
-        )
-        if instance.engineer and hasattr(instance.engineer, 'email') and instance.engineer.email:
-            send_notification(
-                instance.engineer.email,
-                'Новая заявка назначена',
-                f'Вам назначена заявка #{instance.id} на {instance.scheduled_time}.'
-            )
 
         if instance.scheduled_time:
             scheduled_time = instance.scheduled_time
@@ -117,18 +106,5 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         profile.phone = validated_data.get('phone', profile.phone)
         profile.address = validated_data.get('address', profile.address)
         profile.save()
-
-        if instance.status != old_status:
-            send_notification(
-                instance.user.email,
-                'Статус заявки изменён',
-                f'Статус вашей заявки #{instance.id} изменён на {instance.status}.'
-            )
-            if instance.engineer and hasattr(instance.engineer, 'email') and instance.engineer.email:
-                send_notification(
-                    instance.engineer.email,
-                    'Обновление заявки',
-                    f'Заявка #{instance.id} теперь имеет статус {instance.status}.'
-                )
 
         return instance

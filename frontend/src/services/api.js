@@ -54,4 +54,7 @@ export const registerUser = (data) => axios.post('/api/register/', data).then(re
 export const updateRequest = (id, data) => api.put(`/requests/${id}/`, data).then(res => res.data);
 export const getLocations = () => api.get('/locations/').then(res => res.data);
 
+// Добавляем функцию unsubscribeProfile
+export const unsubscribeProfile = () => api.delete('/profile/unsubscribe/').then(res => res.data);
+
 export default api;

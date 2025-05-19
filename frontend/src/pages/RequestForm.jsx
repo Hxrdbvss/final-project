@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 import { ClipLoader } from 'react-spinners';
 import { createRequest, getProfile, updateProfile } from '../services/api';
 import { FaUser, FaEnvelope, FaPhone, FaMapMarkerAlt, FaTools, FaCalendarAlt, FaClock } from 'react-icons/fa';
-import styles from './RequestForm.module.css';
 
 function RequestForm() {
   const [formData, setFormData] = useState({
@@ -91,85 +90,85 @@ function RequestForm() {
   const minDate = tomorrow.toISOString().split('T')[0];
 
   return (
-    <div className="min-h-screen pt-20 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-      <div className="w-full">
+    <div className="min-h-screen px-4 sm:px-6 lg:px-8 flex justify-center bg-gray-200">
+      <div className="w-full max-w-4xl mt-12">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className={`${styles.card} p-4 sm:p-6`}
+          className="bg-gray-50 rounded-lg shadow-md p-6 sm:p-8"
         >
-          <h2 className={`${styles.cardTitle} text-2xl sm:text-3xl`}>Создать заявку</h2>
-          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className={`${styles.formGroup}`}>
-              <label className={`${styles.formLabel} text-sm sm:text-base`}>ФИО</label>
-              <div className={`${styles.inputWrapper}`}>
-                <FaUser className={`${styles.inputIcon}`} />
+          <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-900 text-center">Создать заявку</h2>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="flex flex-col mb-4">
+              <label className="text-sm sm:text-base font-medium text-gray-800 mb-1">ФИО</label>
+              <div className="relative flex items-center">
+                <FaUser className="absolute left-3 text-gray-600" />
                 <input
                   type="text"
                   name="full_name"
                   value={formData.full_name}
                   onChange={handleInputChange}
                   placeholder="Введите ФИО"
-                  className={`${styles.formInput} text-sm sm:text-base`}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm sm:text-base focus:ring-indigo-500 focus:border-indigo-500"
                   required
                 />
               </div>
             </div>
-            <div className={`${styles.formGroup}`}>
-              <label className={`${styles.formLabel} text-sm sm:text-base`}>Email</label>
-              <div className={`${styles.inputWrapper}`}>
-                <FaEnvelope className={`${styles.inputIcon}`} />
+            <div className="flex flex-col mb-4">
+              <label className="text-sm sm:text-base font-medium text-gray-800 mb-1">Email</label>
+              <div className="relative flex items-center">
+                <FaEnvelope className="absolute left-3 text-gray-600" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
                   placeholder="Введите email"
-                  className={`${styles.formInput} text-sm sm:text-base`}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm sm:text-base focus:ring-indigo-500 focus:border-indigo-500"
                   required
                 />
               </div>
             </div>
-            <div className={`${styles.formGroup}`}>
-              <label className={`${styles.formLabel} text-sm sm:text-base`}>Телефон</label>
-              <div className={`${styles.inputWrapper}`}>
-                <FaPhone className={`${styles.inputIcon}`} />
+            <div className="flex flex-col mb-4">
+              <label className="text-sm sm:text-base font-medium text-gray-800 mb-1">Телефон</label>
+              <div className="relative flex items-center">
+                <FaPhone className="absolute left-3 text-gray-600" />
                 <input
                   type="text"
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
                   placeholder="Введите телефон"
-                  className={`${styles.formInput} text-sm sm:text-base`}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm sm:text-base focus:ring-indigo-500 focus:border-indigo-500"
                   required
                 />
               </div>
             </div>
-            <div className={`${styles.formGroup}`}>
-              <label className={`${styles.formLabel} text-sm sm:text-base`}>Адрес</label>
-              <div className={`${styles.inputWrapper}`}>
-                <FaMapMarkerAlt className={`${styles.inputIcon}`} />
+            <div className="flex flex-col mb-4">
+              <label className="text-sm sm:text-base font-medium text-gray-800 mb-1">Адрес</label>
+              <div className="relative flex items-center">
+                <FaMapMarkerAlt className="absolute left-3 text-gray-600" />
                 <input
                   type="text"
                   name="address"
                   value={formData.address}
                   onChange={handleInputChange}
                   placeholder="Введите адрес"
-                  className={`${styles.formInput} text-sm sm:text-base`}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm sm:text-base focus:ring-indigo-500 focus:border-indigo-500"
                   required
                 />
               </div>
             </div>
-            <div className={`${styles.formGroup}`}>
-              <label className={`${styles.formLabel} text-sm sm:text-base`}>Тип оборудования *</label>
-              <div className={`${styles.inputWrapper}`}>
-                <FaTools className={`${styles.inputIcon}`} />
+            <div className="flex flex-col mb-4">
+              <label className="text-sm sm:text-base font-medium text-gray-800 mb-1">Тип оборудования *</label>
+              <div className="relative flex items-center">
+                <FaTools className="absolute left-3 text-gray-600" />
                 <select
                   name="equipment_type"
                   value={formData.equipment_type}
                   onChange={handleInputChange}
-                  className={`${styles.formInput} text-sm sm:text-base`}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm sm:text-base focus:ring-indigo-500 focus:border-indigo-500"
                   required
                 >
                   <option value="">Выберите тип оборудования</option>
@@ -179,30 +178,30 @@ function RequestForm() {
                 </select>
               </div>
             </div>
-            <div className={`${styles.formGroup}`}>
-              <label className={`${styles.formLabel} text-sm sm:text-base`}>Желаемая дата *</label>
-              <div className={`${styles.inputWrapper}`}>
-                <FaCalendarAlt className={`${styles.inputIcon}`} />
+            <div className="flex flex-col mb-4">
+              <label className="text-sm sm:text-base font-medium text-gray-800 mb-1">Желаемая дата *</label>
+              <div className="relative flex items-center">
+                <FaCalendarAlt className="absolute left-3 text-gray-600" />
                 <input
                   type="date"
                   name="preferred_date"
                   value={formData.preferred_date}
                   onChange={handleInputChange}
                   min={minDate}
-                  className={`${styles.formInput} text-sm sm:text-base`}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm sm:text-base focus:ring-indigo-500 focus:border-indigo-500"
                   required
                 />
               </div>
             </div>
-            <div className={`${styles.formGroup} sm:col-span-2`}>
-              <label className={`${styles.formLabel} text-sm sm:text-base`}>Время суток *</label>
-              <div className={`${styles.inputWrapper}`}>
-                <FaClock className={`${styles.inputIcon}`} />
+            <div className="flex flex-col mb-4 sm:col-span-2">
+              <label className="text-sm sm:text-base font-medium text-gray-800 mb-1">Время суток *</label>
+              <div className="relative flex items-center">
+                <FaClock className="absolute left-3 text-gray-600" />
                 <select
                   name="preferred_time_of_day"
                   value={formData.preferred_time_of_day}
                   onChange={handleInputChange}
-                  className={`${styles.formInput} text-sm sm:text-base`}
+                  className="w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm sm:text-base focus:ring-indigo-500 focus:border-indigo-500"
                   required
                 >
                   <option value="">Выберите время суток</option>
@@ -220,7 +219,7 @@ function RequestForm() {
               <button
                 type="submit"
                 disabled={loading}
-                className={`${styles.btnPrimary} text-sm sm:text-base px-6 py-2`}
+                className="bg-gray-800 text-white px-6 py-2 rounded-md text-sm sm:text-base hover:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500 disabled:bg-gray-400 flex items-center gap-2"
               >
                 {loading ? <ClipLoader color="#fff" size={20} /> : 'Создать'}
               </button>

@@ -1,4 +1,3 @@
-// frontend/src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import { TransitionGroup, CSSTransition } from 'react-transition-group';
@@ -11,10 +10,15 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import { ThemeProvider } from './ThemeContext.jsx';
 import EditRequest from './pages/EditRequest';
+import ErrorBoundary from './components/ErrorBoundary';
+
+function ProtectedRoute({ children }) {
+  const isAuthenticated = !!localStorage.getItem('access_token');
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
 
 function AnimatedRoutes() {
   const location = useLocation();
-  const isAuthenticated = !!localStorage.getItem('access_token');
 
   return (
     <TransitionGroup>
@@ -22,23 +26,43 @@ function AnimatedRoutes() {
         <Routes location={location}>
           <Route
             path="/"
-            element={isAuthenticated ? <RequestForm /> : <Navigate to="/login" />}
+            element={
+              <ProtectedRoute>
+                <RequestForm />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/requests"
-            element={isAuthenticated ? <RequestList /> : <Navigate to="/login" />}
+            element={
+              <ProtectedRoute>
+                <RequestList />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/profile"
-            element={isAuthenticated ? <Profile /> : <Navigate to="/login" />}
+            element={
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/edit-profile"
-            element={isAuthenticated ? <EditProfile /> : <Navigate to="/login" />}
+            element={
+              <ProtectedRoute>
+                <EditProfile />
+              </ProtectedRoute>
+            }
           />
           <Route
             path="/edit-request/:id"
-            element={isAuthenticated ? <EditRequest /> : <Navigate to="/login" />}
+            element={
+              <ProtectedRoute>
+                <EditRequest />
+              </ProtectedRoute>
+            }
           />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -52,13 +76,18 @@ function App() {
   return (
     <ThemeProvider>
       <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-        <div className="min-h-screen">
-          <NavBar />
-          <div className="container-fluid py-3 py-md-5">
-            <AnimatedRoutes />
+        <ErrorBoundary>
+          <div className="min-h-screen bg-gray-200 text-gray-900">
+            <NavBar />
+            <div
+              className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5"
+              style={{ paddingTop: 'var(--navbar-height)' }}
+            >
+              <AnimatedRoutes />
+            </div>
+            <ToastContainer position="top-right" autoClose={3000} className="mt-16" />
           </div>
-          <ToastContainer position="top-right" autoClose={3000} />
-        </div>
+        </ErrorBoundary>
       </Router>
     </ThemeProvider>
   );

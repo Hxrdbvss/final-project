@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import { motion } from 'framer-motion';
-import { ClipLoader } from 'react-spinners';
 import { getRequests, cancelRequest } from '../services/api';
-import { FaFilter, FaSearch, FaDownload, FaTools, FaCalendarAlt, FaClock, FaEdit, FaTrash } from 'react-icons/fa';
+import { toast } from 'react-toastify';
+import { ClipLoader } from 'react-spinners';
+import { FaSearch, FaSort, FaDownload } from 'react-icons/fa';
 import { saveAs } from 'file-saver';
 import ReactPaginate from 'react-paginate';
-import styles from './RequestList.module.css';
+import { motion } from 'framer-motion';
+import Card from '../components/Card';
+import Button from '../components/Button';
+import Input from '../components/Input';
+import Select from '../components/Select';
+import Modal from '../components/Modal';
 
 function RequestList() {
   const [requests, setRequests] = useState([]);
@@ -19,10 +23,11 @@ function RequestList() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sortField, setSortField] = useState('full_name');
+  const [sortOrder, setSortOrder] = useState('asc');
   const [exporting, setExporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
-  const [showFilterPanel, setShowFilterPanel] = useState(false);
   const requestsPerPage = 5;
   const navigate = useNavigate();
 
@@ -37,10 +42,8 @@ function RequestList() {
     const fetchRequests = async () => {
       try {
         const response = await getRequests();
-        console.log('API response:', response);
         setRequests(Array.isArray(response) ? response : []);
       } catch (err) {
-        console.error('Error fetching requests:', err);
         setError('Ошибка при загрузке заявок');
         toast.error('Не удалось загрузить заявки.', { position: 'top-right' });
         setRequests([]);
@@ -52,26 +55,42 @@ function RequestList() {
   }, []);
 
   const handleCancel = (id) => {
+    console.log('handleCancel called with ID:', id); // Отладка
     setSelectedRequestId(id);
     setShowModal(true);
   };
 
   const confirmCancel = async () => {
+    console.log('confirmCancel called for ID:', selectedRequestId); // Отладка
     setShowModal(false);
+    if (!selectedRequestId) {
+      toast.error('ID заявки не определён.', { position: 'top-right' });
+      return;
+    }
     try {
-      await cancelRequest(selectedRequestId);
+      const response = await cancelRequest(selectedRequestId);
+      console.log('cancelRequest response:', response); // Отладка
       setRequests(requests.filter((req) => req.id !== selectedRequestId));
       toast.success('Заявка успешно отменена!', { position: 'top-right' });
     } catch (err) {
+      console.error('Error cancelling request:', err.response?.data || err.message); // Отладка
       setError('Ошибка при отмене заявки');
-      toast.error('Ошибка при отмене заявки', { position: 'top-right' });
+      toast.error('Ошибка при отмене заявки: ' + (err.response?.data?.message || err.message), { position: 'top-right' });
+    }
+  };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortOrder('asc');
     }
   };
 
   const handleSearchChange = (e) => {
     const value = e.target.value;
     setSearchTerm(value);
-
     if (value.length > 0 && Array.isArray(requests)) {
       const filteredSuggestions = requests
         .flatMap((req) => [
@@ -95,38 +114,49 @@ function RequestList() {
     setShowSuggestions(false);
   };
 
-  const handlePageClick = ({ selected }) => {
-    setCurrentPage(selected);
-  };
+  const filteredRequests = Array.isArray(requests)
+    ? requests.filter((req) => {
+        const matchesSearch =
+          req.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          req.equipment_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (req.engineer_name || '')
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase());
+        const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
+        const requestDate = req.request_date ? new Date(req.request_date) : null;
+        const startDate = dateRange.start ? new Date(dateRange.start) : null;
+        const endDate = dateRange.end ? new Date(dateRange.end) : null;
+        const matchesDate =
+          (!startDate || (requestDate && requestDate >= startDate)) &&
+          (!endDate || (requestDate && requestDate <= endDate));
+        return matchesSearch && matchesStatus && matchesDate;
+      })
+    : [];
 
-  const filteredRequests = Array.isArray(requests) ? requests.filter((req) => {
-    const matchesSearch =
-      (req.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        req.equipment_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (req.engineer_name || '')
-          .toLowerCase()
-          .includes(searchTerm.toLowerCase()));
-    const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
-    const requestDate = req.request_date ? new Date(req.request_date) : null;
-    const startDate = dateRange.start ? new Date(dateRange.start) : null;
-    const endDate = dateRange.end ? new Date(dateRange.end) : null;
-    const matchesDate =
-      (!startDate || (requestDate && requestDate >= startDate)) &&
-      (!endDate || (requestDate && requestDate <= endDate));
-
-    return matchesSearch && matchesStatus && matchesDate;
-  }) : [];
+  const sortedRequests = [...filteredRequests].sort((a, b) => {
+    const aValue =
+      sortField === 'scheduled_time' || sortField === 'request_date'
+        ? new Date(a[sortField] || 0)
+        : a[sortField] || '';
+    const bValue =
+      sortField === 'scheduled_time' || sortField === 'request_date'
+        ? new Date(b[sortField] || 0)
+        : b[sortField] || '';
+    if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
+    if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
+    return 0;
+  });
 
   const offset = currentPage * requestsPerPage;
-  const paginatedRequests = filteredRequests.slice(offset, offset + requestsPerPage);
-  const pageCount = Math.ceil(filteredRequests.length / requestsPerPage);
+  const paginatedRequests = sortedRequests.slice(offset, offset + requestsPerPage);
+  const pageCount = Math.ceil(sortedRequests.length / requestsPerPage);
 
   const exportToCSV = () => {
     setExporting(true);
     const headers = [
       'ID,ФИО,Телефон,Адрес,Тип оборудования,Дата,Статус,Инженер,Время проведения\n',
     ];
-    const rows = filteredRequests
+    const rows = sortedRequests
       .map((req) =>
         [
           req.id || '',
@@ -153,319 +183,272 @@ function RequestList() {
     setTimeout(() => setExporting(false), 1000);
   };
 
-  if (loading) {
+  if (loading)
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <ClipLoader color="#4a90e2" size={50} />
+      <div className="flex justify-center items-center h-screen bg-gray-200">
+        <ClipLoader color="#6366f1" size={50} />
+        <p className="ml-2 text-gray-900">Загрузка...</p>
       </div>
     );
-  }
-
-  if (error) {
+  if (error)
     return (
-      <div className="min-h-screen pt-24 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-        <div className={`${styles.card} p-4 sm:p-6 text-center`}>
-          <p className="text-red-600 dark:text-red-400">{error}</p>
-        </div>
+      <div className="flex justify-center items-center min-h-screen bg-gray-200">
+        <Card className="max-w-md mx-auto p-6 sm:p-8 bg-gray-50 rounded-lg shadow-md">
+          <p className="text-red-500 text-gray-900">{error}</p>
+        </Card>
       </div>
     );
-  }
-
-  if (!requests.length) {
+  if (!requests.length)
     return (
-      <div className="min-h-screen pt-24 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
-        <div className={`${styles.card} p-4 sm:p-6 text-center`}>
-          <h2 className={`${styles.cardTitle} text-2xl sm:text-3xl`}>Список заявок</h2>
-          <p className="text-gray-600 dark:text-gray-300 mt-4">
+      <div className="flex justify-center items-center min-h-screen bg-gray-200">
+        <Card className="max-w-md mx-auto p-6 sm:p-8 bg-gray-50 rounded-lg shadow-md">
+          <p className="text-gray-900">
             Заявок пока нет.{' '}
-            <button
+            <a
+              href="/"
+              className="text-gray-800 hover:text-gray-900"
               onClick={() => navigate('/')}
-              className="text-blue-600 dark:text-blue-400 underline"
             >
               Создать новую заявку
-            </button>
-            .
+            </a>
           </p>
-        </div>
+        </Card>
       </div>
     );
-  }
 
   return (
-    <div className={`${styles.pageWrapper}`}>
-      <div className="max-w-4xl mx-auto pt-24 px-4 sm:px-6 lg:px-8 relative">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className={`${styles.container}`}
-        >
-          <div className="flex justify-between items-center mb-6">
-            <h2 className={`${styles.cardTitle} text-2xl sm:text-3xl`}>Список заявок</h2>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowFilterPanel(true)}
-              className={`${styles.filterBtn}`}
-            >
-              <FaFilter /> Фильтры
-            </motion.button>
-          </div>
-
-          <div className={`${styles.searchWrapper} mb-6`}>
-            <FaSearch className={`${styles.inputIcon}`} />
-            <input
-              type="text"
-              placeholder="Поиск по ФИО, оборудованию или инженеру..."
-              value={searchTerm}
-              onChange={handleSearchChange}
-              onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
-              onFocus={() => searchTerm.length > 0 && setShowSuggestions(true)}
-              className={`${styles.formInput}`}
-            />
-            {showSuggestions && suggestions.length > 0 && (
-              <ul className={`${styles.suggestions}`}>
-                {suggestions.map((suggestion, index) => (
-                  <li
-                    key={index}
-                    onClick={() => handleSuggestionClick(suggestion)}
-                    className={`${styles.suggestionItem}`}
-                  >
-                    {suggestion}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {filteredRequests.length ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <div className="space-y-4">
-                {paginatedRequests.map((request) => (
-                  <motion.div
-                    key={request.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ duration: 0.3 }}
-                    className={`${styles.card}`}
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center">
-                          <FaTools className={`${styles.icon}`} />
-                          <span className={`${styles.cardText}`}>
-                            {request.equipment_type || '-'}
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <FaCalendarAlt className={`${styles.icon}`} />
-                          <span className={`${styles.cardText}`}>
-                            {request.request_date
-                              ? new Date(request.request_date).toLocaleDateString('ru-RU')
-                              : 'Не задано'}
-                          </span>
-                        </div>
-                        <div className="flex items-center">
-                          <FaClock className={`${styles.icon}`} />
-                          <span className={`${styles.cardText}`}>
-                            {request.scheduled_time
-                              ? new Date(request.scheduled_time).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
-                              : 'Не задано'}
-                          </span>
-                        </div>
+    <div className="min-h-screen px-4 sm:px-6 lg:px-8 flex justify-center bg-gray-200">
+      <div className="w-full max-w-6xl mt-12">
+        <Card className="bg-gray-50 rounded-lg shadow-md p-6 sm:p-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">
+              Ваши заявки
+            </h2>
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <div className="relative flex-1 max-w-xs">
+                <Input
+                  placeholder="Поиск по ФИО, оборудованию или инженеру..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
+                  onFocus={() => searchTerm.length > 0 && setShowSuggestions(true)}
+                  icon={FaSearch}
+                  className="text-gray-900"
+                />
+                {showSuggestions && suggestions.length > 0 && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-gray-50/90 backdrop-blur-lg rounded-md shadow-lg z-10 max-h-48 overflow-y-auto">
+                    {suggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        className="px-4 py-2 hover:bg-gray-100 cursor-pointer text-gray-900"
+                        onClick={() => handleSuggestionClick(suggestion)}
+                      >
+                        {suggestion}
                       </div>
-                      <div className="space-y-1 text-right">
-                        <div className="flex justify-end">
-                          <span className={`${styles.statusBadge} ${
-                            request.status === 'APPROVED' ? styles.statusApproved :
-                            request.status === 'PENDING' ? styles.statusPending :
-                            request.status === 'REJECTED' ? styles.statusRejected :
-                            styles.statusCompleted
-                          }`}>
-                            {statusLabels[request.status] || request.status || 'Не определён'}
-                          </span>
-                        </div>
-                        <div className={`${styles.cardText}`}>
-                          Инженер: {request.engineer_name || 'Не назначен'}
-                        </div>
-                        <div className="flex justify-end space-x-2 mt-2">
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => navigate(`/edit-request/${request.id}`)}
-                            disabled={request.status === 'REJECTED' || request.status === 'COMPLETED'}
-                            className={`${styles.actionBtn} ${styles.editBtn}`}
-                            title="Редактировать"
-                          >
-                            <FaEdit />
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleCancel(request.id)}
-                            disabled={request.status === 'REJECTED' || request.status === 'COMPLETED'}
-                            className={`${styles.actionBtn} ${styles.deleteBtn}`}
-                            title="Отменить"
-                          >
-                            <FaTrash />
-                          </motion.button>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-              <ReactPaginate
-                previousLabel={'←'}
-                nextLabel={'→'}
-                breakLabel={'...'}
-                pageCount={pageCount}
-                marginPagesDisplayed={2}
-                pageRangeDisplayed={3}
-                onPageChange={handlePageClick}
-                containerClassName={`${styles.pagination}`}
-                activeClassName={`${styles.active}`}
-                pageClassName={`${styles.pageItem}`}
-                pageLinkClassName={`${styles.pageLink}`}
-                previousClassName={`${styles.pageItem}`}
-                previousLinkClassName={`${styles.pageLink}`}
-                nextClassName={`${styles.pageItem}`}
-                nextLinkClassName={`${styles.pageLink}`}
-                breakClassName={`${styles.pageItem}`}
-                breakLinkClassName={`${styles.pageLink}`}
-              />
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={exportToCSV}
-                disabled={exporting}
-                className={`${styles.btnPrimary} mt-6 block mx-auto`}
-              >
-                {exporting ? (
-                  <ClipLoader color="#fff" size={14} />
-                ) : (
-                  <span className="flex items-center">
-                    <FaDownload className="mr-2" /> Экспорт CSV
-                  </span>
+                    ))}
+                  </div>
                 )}
-              </motion.button>
-            </motion.div>
-          ) : (
-            <p className="text-center text-gray-600 dark:text-gray-300">Заявок не найдено.</p>
-          )}
-        </motion.div>
-
-        {/* Выплывающее окно фильтров */}
-        {showFilterPanel && (
-          <div className={`${styles.filterOverlay}`}>
-            <motion.div
-              initial={{ opacity: 0, x: 300 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 300 }}
-              transition={{ duration: 0.3 }}
-              className={`${styles.filterPanel}`}
-            >
-              <div className={`${styles.filterHeader}`}>
-                <h5>Фильтры</h5>
-                <button onClick={() => setShowFilterPanel(false)} className={`${styles.closeBtn}`}>
-                  ×
-                </button>
               </div>
-              <div className={`${styles.filterBody}`}>
-                <div className="mb-4">
-                  <label className={`${styles.formLabel}`}>Статус</label>
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className={`${styles.formInput}`}
-                  >
-                    <option value="all">Все статусы</option>
-                    <option value="PENDING">Ожидание</option>
-                    <option value="APPROVED">Одобрено</option>
-                    <option value="REJECTED">Отклонено</option>
-                    <option value="COMPLETED">Завершено</option>
-                  </select>
+              <Select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                options={[
+                  { value: 'all', label: 'Все статусы' },
+                  { value: 'PENDING', label: 'Ожидание' },
+                  { value: 'APPROVED', label: 'Одобрено' },
+                  { value: 'REJECTED', label: 'Отклонено' },
+                  { value: 'COMPLETED', label: 'Завершено' },
+                ]}
+                className="text-gray-900"
+              />
+              <Input
+                type="date"
+                placeholder="Начальная дата"
+                value={dateRange.start}
+                onChange={(e) =>
+                  setDateRange({ ...dateRange, start: e.target.value })
+                }
+                className="text-gray-900"
+              />
+              <Input
+                type="date"
+                placeholder="Конечная дата"
+                value={dateRange.end}
+                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                className="text-gray-900"
+              />
+              <motion.div whileHover={{ scale: 1.05 }}>
+                <Button
+                  onClick={exportToCSV}
+                  disabled={exporting}
+                  className="bg-gray-800 text-white hover:bg-gray-900 focus:ring-gray-500"
+                >
+                  {exporting ? (
+                    <ClipLoader color="#ffffff" size={14} />
+                  ) : (
+                    <>
+                      <FaDownload className="mr-2" /> Экспорт CSV
+                    </>
+                  )}
+                </Button>
+              </motion.div>
+            </div>
+            {filteredRequests.length ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: 0.2 }}
+              >
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead className="bg-gray-100 border-b border-gray-200">
+                      <tr>
+                        <th
+                          className="py-3 px-4 cursor-pointer text-sm font-medium text-gray-800 uppercase tracking-wider"
+                          onClick={() => handleSort('full_name')}
+                        >
+                          ФИО <FaSort className="inline" />
+                        </th>
+                        <th
+                          className="py-3 px-4 cursor-pointer text-sm font-medium text-gray-800 uppercase tracking-wider"
+                          onClick={() => handleSort('equipment_type')}
+                        >
+                          Оборудование <FaSort className="inline" />
+                        </th>
+                        <th
+                          className="py-3 px-4 cursor-pointer text-sm font-medium text-gray-800 uppercase tracking-wider"
+                          onClick={() => handleSort('status')}
+                        >
+                          Статус <FaSort className="inline" />
+                        </th>
+                        <th
+                          className="py-3 px-4 cursor-pointer text-sm font-medium text-gray-800 uppercase tracking-wider"
+                          onClick={() => handleSort('engineer_name')}
+                        >
+                          Инженер <FaSort className="inline" />
+                        </th>
+                        <th
+                          className="py-3 px-4 cursor-pointer text-sm font-medium text-gray-800 uppercase tracking-wider"
+                          onClick={() => handleSort('scheduled_time')}
+                        >
+                          Время проведения <FaSort className="inline" />
+                        </th>
+                        <th className="py-3 px-4 text-sm font-medium text-gray-800 uppercase tracking-wider">
+                          Действия
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {paginatedRequests.map((request) => (
+                        <tr
+                          key={request.id}
+                          className="hover:bg-gray-50"
+                        >
+                          <td className="py-3 px-4 text-sm text-gray-900">
+                            {request.full_name || '-'}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-900">
+                            {request.equipment_type || '-'}
+                          </td>
+                          <td className="py-3 px-4 text-sm">
+                            <span
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                request.status === 'APPROVED'
+                                  ? 'bg-green-100 text-green-800'
+                                  : request.status === 'PENDING'
+                                  ? 'bg-yellow-100 text-yellow-800'
+                                  : request.status === 'REJECTED'
+                                  ? 'bg-red-100 text-red-800'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              {statusLabels[request.status] || request.status || 'Не определён'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-900">
+                            {request.engineer_name || 'Не назначен'}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-900">
+                            {request.scheduled_time
+                              ? new Date(request.scheduled_time).toLocaleString('ru-RU')
+                              : 'Не задано'}
+                          </td>
+                          <td className="py-3 px-4 flex gap-2">
+                            <motion.div whileHover={{ scale: 1.05 }}>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => navigate(`/edit-request/${request.id}`)}
+                                disabled={
+                                  request.status === 'REJECTED' || request.status === 'COMPLETED'
+                                }
+                                className="bg-gray-800 text-white hover:bg-gray-900 focus:ring-gray-500"
+                              >
+                                Редактировать
+                              </Button>
+                            </motion.div>
+                            <motion.div whileHover={{ scale: 1.05 }}>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => handleCancel(request.id)}
+                                disabled={
+                                  request.status === 'REJECTED' || request.status === 'COMPLETED'
+                                }
+                                className="bg-gray-800 text-white hover:bg-gray-900 focus:ring-gray-500"
+                              >
+                                Отменить
+                              </Button>
+                            </motion.div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="mb-4">
-                  <label className={`${styles.formLabel}`}>Начальная дата</label>
-                  <input
-                    type="date"
-                    value={dateRange.start}
-                    onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                    className={`${styles.formInput}`}
-                  />
-                </div>
-                <div className="mb-4">
-                  <label className={`${styles.formLabel}`}>Конечная дата</label>
-                  <input
-                    type="date"
-                    value={dateRange.end}
-                    onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                    className={`${styles.formInput}`}
-                  />
-                </div>
-              </div>
-              <div className={`${styles.filterFooter}`}>
-                <button
-                  onClick={() => {
-                    setStatusFilter('all');
-                    setDateRange({ start: '', end: '' });
-                  }}
-                  className={`${styles.btnSecondary}`}
-                >
-                  Сбросить
-                </button>
-                <button
-                  onClick={() => setShowFilterPanel(false)}
-                  className={`${styles.btnPrimary}`}
-                >
-                  Применить
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* Модал для подтверждения отмены */}
-        {showModal && (
-          <div className={`${styles.modalOverlay}`}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className={`${styles.modal}`}
-            >
-              <div className={`${styles.modalHeader}`}>
-                <h5>Подтверждение</h5>
-                <button onClick={() => setShowModal(false)} className={`${styles.modalClose}`}>
-                  ×
-                </button>
-              </div>
-              <div className={`${styles.modalBody}`}>
-                Вы уверены, что хотите отменить эту заявку?
-              </div>
-              <div className={`${styles.modalFooter}`}>
-                <button
-                  onClick={() => setShowModal(false)}
-                  className={`${styles.btnSecondary}`}
-                >
-                  Отмена
-                </button>
-                <button
-                  onClick={confirmCancel}
-                  className={`${styles.btnDanger}`}
-                >
-                  Подтвердить
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
+                <ReactPaginate
+                  previousLabel={'←'}
+                  nextLabel={'→'}
+                  breakLabel={'...'}
+                  pageCount={pageCount}
+                  marginPagesDisplayed={2}
+                  pageRangeDisplayed={3}
+                  onPageChange={({ selected }) => setCurrentPage(selected)}
+                  containerClassName="flex justify-center mt-6 gap-2"
+                  activeClassName="bg-gray-800 text-white"
+                  pageClassName="inline-block"
+                  pageLinkClassName="px-3 py-1 rounded-md bg-gray-50 border border-gray-200 text-gray-900 hover:bg-gray-100"
+                  previousClassName="inline-block"
+                  previousLinkClassName="px-3 py-1 rounded-md bg-gray-50 border border-gray-200 text-gray-900 hover:bg-gray-100"
+                  nextClassName="inline-block"
+                  nextLinkClassName="px-3 py-1 rounded-md bg-gray-50 border border-gray-200 text-gray-900 hover:bg-gray-100"
+                  breakClassName="inline-block"
+                  breakLinkClassName="px-3 py-1 text-gray-900"
+                />
+              </motion.div>
+            ) : (
+              <p className="text-center text-gray-900">
+                Заявок не найдено.
+              </p>
+            )}
+          </motion.div>
+        </Card>
       </div>
+      <Modal
+      show={showModal}
+      onHide={() => {
+        console.log('Закрываю модальное окно');
+        setShowModal(false);
+      }}
+      title="Подтверждение"
+      onConfirm={confirmCancel}
+      >
+        Вы уверены, что хотите отменить эту заявку?
+      </Modal>
     </div>
   );
 }
