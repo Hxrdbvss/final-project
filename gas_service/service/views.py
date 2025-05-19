@@ -1,7 +1,9 @@
+# service/views.py
 from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.exceptions import ValidationError  # Импортируем ValidationError
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -62,92 +64,71 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
 
         if preferred_date and preferred_time_of_day:
             time_ranges = {
-                'morning': (9, 12),
-                'afternoon': (12, 15),
-                'evening': (15, 18),
+                'morning': (time(9, 0), time(12, 0)),
+                'afternoon': (time(12, 0), time(15, 0)),
+                'evening': (time(15, 0), time(18, 0)),
             }
-            start_hour, end_hour = time_ranges.get(preferred_time_of_day, (9, 12))
+            start_time, end_time = time_ranges.get(preferred_time_of_day, (time(9, 0), time(12, 0)))
 
             # Проверяем, что дата не раньше завтра
             tomorrow = timezone.now().date() + timedelta(days=1)
             if preferred_date < tomorrow:
-                raise serializer.ValidationError("Дата должна быть не раньше завтра.")
-
-            engineers = Engineer.objects.filter(
-                is_available=True,
-                work_start_time__lte=time(start_hour),
-                work_end_time__gte=time(end_hour)
-            )
-            if location:
-                engineers = engineers.filter(location=location)
+                raise ValidationError("Дата должна быть не раньше завтра.")
 
             scheduled_time = None
             selected_engineer = None
+            current_date = preferred_date
 
-            # Проверяем доступность инженеров
-            for engineer in engineers.order_by('?'):
-                if not is_working_day(engineer, preferred_date):
-                    continue
-                # Выбираем первый свободный час в диапазоне
-                for hour in range(start_hour, end_hour):
-                    current_time = datetime.combine(preferred_date, time(hour))
-                    current_time = timezone.make_aware(current_time)
-                    conflicts = ServiceRequest.objects.filter(
-                        engineer=engineer,
-                        scheduled_time__year=current_time.year,
-                        scheduled_time__month=current_time.month,
-                        scheduled_time__day=current_time.day,
-                        scheduled_time__hour=current_time.hour,
-                    ).count()
-                    if conflicts == 0:
-                        scheduled_time = current_time
-                        selected_engineer = engineer
-                        break
-                if scheduled_time:
-                    break
+            # Поиск доступного инженера и времени
+            max_attempts = 7  # Ограничим поиск на 7 дней вперёд
+            attempt = 0
+            while attempt < max_attempts and not scheduled_time:
+                engineers = Engineer.objects.filter(
+                    is_available=True,
+                    work_start_time__lte=start_time,
+                    work_end_time__gte=end_time
+                )
+                if location:
+                    engineers = engineers.filter(location=location)
 
-            # Если инженер не найден, пробуем следующий день
-            if not scheduled_time:
-                next_day = preferred_date + timedelta(days=1)
                 for engineer in engineers.order_by('?'):
-                    if not is_working_day(engineer, next_day):
-                        continue
-                    for hour in range(start_hour, end_hour):
-                        current_time = datetime.combine(next_day, time(hour))
-                        current_time = timezone.make_aware(current_time)
-                        conflicts = ServiceRequest.objects.filter(
-                            engineer=engineer,
-                            scheduled_time__year=current_time.year,
-                            scheduled_time__month=current_time.month,
-                            scheduled_time__day=current_time.day,
-                            scheduled_time__hour=current_time.hour,
-                        ).count()
-                        if conflicts == 0:
-                            scheduled_time = current_time
-                            selected_engineer = engineer
+                    if is_working_day(engineer, current_date):
+                        for hour in range(start_time.hour, end_time.hour):
+                            check_time = timezone.make_aware(datetime.combine(current_date, time(hour)))
+                            conflicts = ServiceRequest.objects.filter(
+                                engineer=engineer,
+                                scheduled_time__date=current_date,
+                                scheduled_time__hour=hour
+                            ).count()
+                            if conflicts == 0:
+                                scheduled_time = check_time
+                                selected_engineer = engineer
+                                break
+                        if scheduled_time:
                             break
-                    if scheduled_time:
-                        break
+                if not scheduled_time:
+                    current_date += timedelta(days=1)
+                attempt += 1
 
-            # Если инженер найден, сохраняем заявку
-            if selected_engineer and scheduled_time:
-                serializer.validated_data['scheduled_time'] = scheduled_time
-                serializer.validated_data['engineer'] = selected_engineer
-            else:
-                raise serializer.ValidationError("Нет доступных инженеров для выбранной даты и времени.")
+            if not scheduled_time:
+                raise ValidationError("Нет доступных инженеров в течение ближайших 7 дней.")
+
+            serializer.validated_data['scheduled_time'] = scheduled_time
+            serializer.validated_data['engineer'] = selected_engineer
+            serializer.validated_data['status'] = 'APPROVED'
         else:
             # Если дата или время не указаны, назначаем завтра 9:00
             next_day = timezone.now().date() + timedelta(days=1)
-            scheduled_time = datetime.combine(next_day, time(9))
-            scheduled_time = timezone.make_aware(scheduled_time)
+            scheduled_time = timezone.make_aware(datetime.combine(next_day, time(9, 0)))
             engineers = Engineer.objects.filter(is_available=True)
             if location:
                 engineers = engineers.filter(location=location)
-            selected_engineer = engineers.order_by('?').first() if engineers.exists() else None
+            selected_engineer = next((e for e in engineers.order_by('?') if is_working_day(e, next_day)), None)
             if not selected_engineer:
-                raise serializer.ValidationError("Нет доступных инженеров.")
+                raise ValidationError("Нет доступных инженеров.")
             serializer.validated_data['scheduled_time'] = scheduled_time
             serializer.validated_data['engineer'] = selected_engineer
+            serializer.validated_data['status'] = 'APPROVED'
 
         serializer.save(user=self.request.user)
 
@@ -157,7 +138,9 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
 def is_working_day(engineer, date):
     if engineer.schedule_type == '2/2':
         delta = (date - engineer.schedule_start_date).days
-        return delta % 4 in [0, 1]
+        cycle_position = delta % 4
+        # 2/2: 0 и 1 — рабочие дни, 2 и 3 — выходные
+        return cycle_position in [0, 1]
     return True
 
 @csrf_exempt
