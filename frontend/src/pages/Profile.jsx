@@ -93,7 +93,7 @@ function Profile() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="max-w-2xl mx-auto" // Увеличиваем ширину карточки с max-w-lg до max-w-2xl
+        className="max-w-2xl mx-auto"
       >
         <div className="card p-8 bg-gradient-to-br from-blue-50 to-white dark:from-blue-900 dark:to-gray-800 shadow-xl rounded-2xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
           <h2 className="card-title text-4xl font-bold mb-8 text-blue-600 dark:text-blue-300 tracking-tight">
@@ -157,66 +157,66 @@ function Profile() {
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+            className="fixed inset-0 bg-black bg-opacity-60 flex justify-center items-center z-50"
           >
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md"> {/* Увеличиваем модальное окно с max-w-sm до max-w-md */}
-              <h3 className="text-xl mb-5 text-gray-900 dark:text-gray-100">Редактировать профиль</h3>
-              <form onSubmit={handleSubmit}>
-                <div className="mb-4">
-                  <label className="block mb-2 text-gray-700 dark:text-gray-300 text-base">ФИО</label>
+            <div className="bg-white dark:bg-gray-800 p-8 rounded-xl shadow-2xl w-full max-w-md">
+              <h3 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-gray-100">Редактировать профиль</h3>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div>
+                  <label className="block mb-2 text-gray-700 dark:text-gray-200 text-sm font-medium">ФИО</label>
                   <input
                     type="text"
                     name="full_name"
                     value={formData.full_name}
                     onChange={handleChange}
-                    className="w-full p-3 border rounded bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
                     required
                   />
                 </div>
-                <div className="mb-4">
-                  <label className="block mb-2 text-gray-700 dark:text-gray-300 text-base">Email</label>
+                <div>
+                  <label className="block mb-2 text-gray-700 dark:text-gray-200 text-sm font-medium">Email</label>
                   <input
                     type="email"
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    className="w-full p-3 border rounded bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
                     required
                   />
                 </div>
-                <div className="mb-4">
-                  <label className="block mb-2 text-gray-700 dark:text-gray-300 text-base">Телефон</label>
+                <div>
+                  <label className="block mb-2 text-gray-700 dark:text-gray-200 text-sm font-medium">Телефон</label>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleChange}
-                    className="w-full p-3 border rounded bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
                     required
                   />
                 </div>
-                <div className="mb-4">
-                  <label className="block mb-2 text-gray-700 dark:text-gray-300 text-base">Адрес</label>
+                <div>
+                  <label className="block mb-2 text-gray-700 dark:text-gray-200 text-sm font-medium">Адрес</label>
                   <input
                     type="text"
                     name="address"
                     value={formData.address}
                     onChange={handleChange}
-                    className="w-full p-3 border rounded bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base"
+                    className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-colors"
                     required
                   />
                 </div>
-                <div className="flex justify-end space-x-4">
+                <div className="flex justify-end space-x-4 mt-6">
                   <button
                     type="button"
                     onClick={handleCloseEdit}
-                    className="btn-secondary text-base px-6 py-3 rounded-md"
+                    className="btn-secondary text-base px-6 py-3 rounded-md bg-gray-300 dark:bg-gray-600 text-gray-800 dark:text-gray-200 hover:bg-gray-400 dark:hover:bg-gray-500 transition-colors"
                   >
                     Отмена
                   </button>
                   <button
                     type="submit"
-                    className="btn-primary text-base px-6 py-3 rounded-md"
+                    className="btn-primary text-base px-6 py-3 rounded-md bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-colors"
                     disabled={loading}
                   >
                     {loading ? <ClipLoader color="#ffffff" size={20} /> : 'Сохранить'}

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: 'http://127.0.0.1:8000/api/', // Указываем адрес бэкенда
   headers: {
     'Content-Type': 'application/json',
   },
@@ -27,7 +27,7 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       try {
         const refreshToken = localStorage.getItem('refresh_token');
-        const response = await axios.post('/api/token/refresh/', { refresh: refreshToken });
+        const response = await api.post('/token/refresh/', { refresh: refreshToken });
         const { access } = response.data;
         localStorage.setItem('access_token', access);
         originalRequest.headers.Authorization = `Bearer ${access}`;
@@ -45,15 +45,16 @@ api.interceptors.response.use(
 );
 
 export const getRequests = () => api.get('/requests/').then(res => res.data);
+export const getUserRequests = () => api.get('/requests/user_requests/').then(res => res.data);
 export const createRequest = (data) => api.post('/requests/', data).then(res => res.data);
 export const cancelRequest = (id) => api.delete(`/requests/${id}/`).then(res => res.data);
-export const getProfile = () => api.get('/profile/').then(res => res.data);
-export const updateProfile = (data) => api.put('/profile/', data).then(res => res.data);
-export const loginUser = (credentials) => axios.post('/api/token/', credentials).then(res => res.data);
-export const registerUser = (data) => axios.post('/api/register/', data).then(res => res.data);
+export const getProfile = () => api.get('/user-profiles/').then(res => res.data); // Исправляем путь
+export const updateProfile = (data) => api.patch('/user-profiles/1/', data).then(res => res.data); // Исправляем путь и метод
+export const loginUser = (credentials) => api.post('/token/', credentials).then(res => res.data);
+export const registerUser = (data) => api.post('/register/', data).then(res => res.data);
 export const updateRequest = (id, data) => api.put(`/requests/${id}/`, data).then(res => res.data);
 export const getLocations = () => api.get('/locations/').then(res => res.data);
 export const unsubscribeProfile = () => api.delete('/profile/unsubscribe/').then(res => res.data);
-export const createEngineer = (data) => api.post('create-engineer/', data).then((res) => res.data);
+export const createEngineer = (data) => api.post('/create-engineer/', data).then(res => res.data);
 
 export default api;
