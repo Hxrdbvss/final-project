@@ -1,10 +1,9 @@
-# service/urls.py
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     LocationViewSet, StreetViewSet, UserProfileViewSet, EngineerViewSet,
     ServiceRequestViewSet, api_register, TokenObtainPairView, TokenRefreshView,
-    create_engineer  # Убедимся, что create_engineer импортирован
+    create_engineer
 )
 
 router = DefaultRouter()
@@ -25,5 +24,6 @@ urlpatterns = [
     path('api/register/', api_register, name='api_register'),
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('api/create-engineer/', create_engineer, name='create_engineer'),
+    path('api/create-engineer/', create_engineer, name='create-engineer'),
+    path('api/requests/available-dates/', ServiceRequestViewSet.as_view({'get': 'available_dates'}), name='available-dates'),
 ]

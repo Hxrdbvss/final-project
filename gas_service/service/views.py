@@ -1,9 +1,8 @@
-# service/views.py
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated  # Добавляем импорт
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.exceptions import ValidationError  # Импортируем ValidationError
+from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.contrib.auth.models import User
 from django.utils import timezone
@@ -33,16 +32,24 @@ class UserProfileViewSet(viewsets.ModelViewSet):
         return UserProfile.objects.filter(user=self.request.user)
 
     def list(self, request, *args, **kwargs):
-        profile, created = UserProfile.objects.get_or_create(user=self.request.user)
-        serializer = self.get_serializer(profile)
-        return Response(serializer.data)
+        try:
+            profile, created = UserProfile.objects.get_or_create(user=self.request.user)
+            serializer = self.get_serializer(profile)
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"List error: {e}")
+            return Response({"error": str(e)}, status=500)
 
     def update(self, request, *args, **kwargs):
         profile, created = UserProfile.objects.get_or_create(user=self.request.user)
         serializer = self.get_serializer(profile, data=request.data, partial=True)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data)
+        try:
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+            return Response(serializer.data)
+        except Exception as e:
+            print(f"Update error: {e}")
+            return Response({"error": str(e)}, status=400)
 
 class EngineerViewSet(viewsets.ModelViewSet):
     queryset = Engineer.objects.all()
@@ -70,7 +77,6 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
             }
             start_time, end_time = time_ranges.get(preferred_time_of_day, (time(9, 0), time(12, 0)))
 
-            # Проверяем, что дата не раньше завтра
             tomorrow = timezone.now().date() + timedelta(days=1)
             if preferred_date < tomorrow:
                 raise ValidationError("Дата должна быть не раньше завтра.")
@@ -79,8 +85,7 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
             selected_engineer = None
             current_date = preferred_date
 
-            # Поиск доступного инженера и времени
-            max_attempts = 7  # Ограничим поиск на 7 дней вперёд
+            max_attempts = 7
             attempt = 0
             while attempt < max_attempts and not scheduled_time:
                 engineers = Engineer.objects.filter(
@@ -117,7 +122,6 @@ class ServiceRequestViewSet(viewsets.ModelViewSet):
             serializer.validated_data['engineer'] = selected_engineer
             serializer.validated_data['status'] = 'APPROVED'
         else:
-            # Если дата или время не указаны, назначаем завтра 9:00
             next_day = timezone.now().date() + timedelta(days=1)
             scheduled_time = timezone.make_aware(datetime.combine(next_day, time(9, 0)))
             engineers = Engineer.objects.filter(is_available=True)
@@ -139,7 +143,6 @@ def is_working_day(engineer, date):
     if engineer.schedule_type == '2/2':
         delta = (date - engineer.schedule_start_date).days
         cycle_position = delta % 4
-        # 2/2: 0 и 1 — рабочие дни, 2 и 3 — выходные
         return cycle_position in [0, 1]
     return True
 
@@ -152,15 +155,14 @@ def create_engineer(request):
 
     serializer = EngineerSerializer(data=request.data)
     if serializer.is_valid():
-        username = request.data.get('email').split('@')[0]  # Генерируем username из email
-        password = User.objects.make_random_password()  # Генерируем случайный пароль
+        username = request.data.get('email').split('@')[0]
+        password = User.objects.make_random_password()
         user = User.objects.create_user(username=username, email=request.data.get('email'), password=password)
         engineer_data = serializer.validated_data
         engineer_data['user'] = user
         engineer = serializer.create(engineer_data)
         return Response(EngineerSerializer(engineer).data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 @csrf_exempt
 @api_view(['POST'])

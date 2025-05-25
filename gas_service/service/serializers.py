@@ -4,24 +4,30 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    email = serializers.EmailField(source='user.email', read_only=True)  # Получаем email из User
+    email = serializers.EmailField(source='user.email', allow_null=True, default=None)
 
     class Meta:
         model = UserProfile
-        fields = ['id', 'user', 'full_name', 'email', 'phone', 'address', 'location', 'role']
-        read_only_fields = ['user', 'email']
+        fields = ['id', 'user', 'role', 'full_name', 'email', 'phone', 'address']
+        read_only_fields = ['user', 'role']
 
-    def to_representation(self, instance):
-        try:
-            return super().to_representation(instance)
-        except Exception as e:
-            print(f"Error in UserProfileSerializer: {e}")
-            return {"error": "Failed to serialize profile"}
+    def update(self, instance, validated_data):
+        instance.full_name = validated_data.get('full_name', instance.full_name)
+        instance.phone = validated_data.get('phone', instance.phone)
+        instance.address = validated_data.get('address', instance.address)
+        instance.save()
+
+        user_data = validated_data.get('user', {})
+        if 'email' in user_data and instance.user:
+            instance.user.email = user_data['email']
+            instance.user.save()
+
+        return instance
 
 class EngineerSerializer(serializers.ModelSerializer):
     class Meta:
         model = Engineer
-        fields = '__all__'
+        fields = ['id', 'user', 'full_name', 'is_available', 'location', 'work_start_time', 'work_end_time', 'schedule_type', 'schedule_start_date']
 
 class LocationSerializer(serializers.ModelSerializer):
     class Meta:
@@ -34,7 +40,8 @@ class StreetSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class ServiceRequestSerializer(serializers.ModelSerializer):
-    engineer_name = serializers.CharField(source='engineer.full_name', read_only=True, allow_null=True)
+    engineer_name = serializers.SerializerMethodField()
+    engineer_id = serializers.IntegerField(source='engineer.id', read_only=True, allow_null=True)
     scheduled_time = serializers.DateTimeField(format='%Y-%m-%d %H:%M', read_only=True)
 
     class Meta:
@@ -42,10 +49,13 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'user', 'full_name', 'email', 'phone', 'address', 'equipment_type',
             'request_date', 'scheduled_time', 'status', 'engineer', 'engineer_name',
-            'location', 'preferred_date', 'preferred_time_of_day'
+            'engineer_id', 'location', 'preferred_date', 'preferred_time_of_day'
         ]
-        read_only_fields = ['id', 'user', 'request_date', 'scheduled_time', 'status', 'engineer']
-    
+        read_only_fields = ['id', 'user', 'request_date', 'scheduled_time', 'engineer', 'engineer_name', 'engineer_id']
+
+    def get_engineer_name(self, obj):
+        return obj.engineer.userprofile.full_name if obj.engineer and hasattr(obj.engineer, 'userprofile') and obj.engineer.userprofile else 'Не указан'
+
     def create(self, validated_data):
         request = self.context.get('request')
         validated_data['user'] = request.user if request else None
@@ -56,44 +66,6 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         profile.phone = validated_data.get('phone', profile.phone)
         profile.address = validated_data.get('address', profile.address)
         profile.save()
-
-        if instance.scheduled_time:
-            scheduled_time = instance.scheduled_time
-            scheduled_date = scheduled_time.date()
-            scheduled_hour = scheduled_time.time()
-
-            engineers = Engineer.objects.filter(
-                is_available=True,
-                work_start_time__lte=scheduled_hour,
-                work_end_time__gte=scheduled_hour
-            )
-
-            available_engineers = []
-            for engineer in engineers:
-                days_since_start = (scheduled_date - engineer.schedule_start_date).days
-                if engineer.schedule_type == "2/2":
-                    cycle_position = days_since_start % 4
-                    if cycle_position < 2:
-                        available_engineers.append(engineer)
-                else:
-                    available_engineers.append(engineer)
-
-            if available_engineers:
-                engineer_workload = []
-                for engineer in available_engineers:
-                    workload = ServiceRequest.objects.filter(
-                        engineer=engineer,
-                        scheduled_time__date=scheduled_date
-                    ).count()
-                    engineer_workload.append((engineer, workload))
-
-                engineer_workload.sort(key=lambda x: x[1])
-                selected_engineer = engineer_workload[0][0] if engineer_workload else None
-
-                if selected_engineer:
-                    instance.engineer = selected_engineer
-                    instance.status = 'APPROVED'
-                    instance.save()
 
         return instance
 
@@ -106,5 +78,12 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         profile.phone = validated_data.get('phone', profile.phone)
         profile.address = validated_data.get('address', profile.address)
         profile.save()
+
+        preferred_date = validated_data.get('preferred_date')
+        preferred_time_of_day = validated_data.get('preferred_time_of_day')
+        if preferred_date and preferred_time_of_day:
+            instance.preferred_date = preferred_date
+            instance.preferred_time_of_day = preferred_time_of_day
+            instance.save()
 
         return instance
