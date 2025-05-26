@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { createEngineer } from '../services/api';
 import { toast } from 'react-toastify';
 import { ClipLoader } from 'react-spinners';
+import { motion } from 'framer-motion';
+import Button from '../components/Button';
+import Input from '../components/Input';
 
 function CreateEngineer() {
   const [formData, setFormData] = useState({
@@ -35,81 +38,91 @@ function CreateEngineer() {
   };
 
   return (
-    <div className="min-h-screen py-20 px-4 bg-white dark:bg-gray-900"> {/* Явно белый фон */}
-      <div className="max-w-lg mx-auto">
-        <h1 className="text-3xl font-bold mb-6 text-gray-800 dark:text-gray-200">Создать инженера</h1>
-        <form onSubmit={handleSubmit} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg">
-          <div className="mb-4">
-            <label className="block mb-1 text-gray-800 dark:text-gray-200">ФИО</label>
-            <input
+    <div className="min-h-screen py-20 px-4 bg-gradient-to-r from-indigo-100 to-blue-100 flex justify-center items-center">
+      <motion.div
+        initial={{ opacity: 0, y: 50 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        className="bg-white shadow-lg rounded-xl p-8 max-w-md w-full"
+      >
+        <h1 className="text-3xl font-semibold text-gray-800 mb-6 text-center bg-gradient-to-r from-indigo-500 to-blue-500 text-transparent bg-clip-text">
+          Создать инженера
+        </h1>
+        <form onSubmit={handleSubmit}>
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">ФИО</label>
+            <Input
               type="text"
               name="full_name"
               value={formData.full_name}
               onChange={handleChange}
-              className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:ring-gray-500 focus:border-gray-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
               required
             />
           </div>
-          <div className="mb-4">
-            <label className="block mb-1 text-gray-800 dark:text-gray-200">Телефон</label>
-            <input
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Телефон</label>
+            <Input
               type="tel"
               name="phone"
               value={formData.phone}
               onChange={handleChange}
-              className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:ring-gray-500 focus:border-gray-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
               required
             />
           </div>
-          <div className="mb-4">
-            <label className="block mb-1 text-gray-800 dark:text-gray-200">Email</label>
-            <input
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
+            <Input
               type="email"
               name="email"
               value={formData.email}
               onChange={handleChange}
-              className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:ring-gray-500 focus:border-gray-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
               required
             />
           </div>
-          <div className="mb-4">
-            <label className="block mb-1 text-gray-800 dark:text-gray-200">Адрес</label>
-            <input
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Адрес</label>
+            <Input
               type="text"
               name="address"
               value={formData.address}
               onChange={handleChange}
-              className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:ring-gray-500 focus:border-gray-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
             />
           </div>
-          <div className="mb-4">
-            <label className="block mb-1 text-gray-800 dark:text-gray-200">Локация (ID)</label>
-            <input
+          <div className="mb-6">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Локация (ID)</label>
+            <Input
               type="number"
               name="location"
               value={formData.location}
               onChange={handleChange}
-              className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600 focus:ring-gray-500 focus:border-gray-500"
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
             />
           </div>
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={() => navigate('/profile')}
-              className="btn-secondary text-sm px-4 py-2 rounded-md bg-gray-300 text-gray-800 hover:bg-gray-400 dark:bg-gray-600 dark:text-gray-200 dark:hover:bg-gray-500"
-            >
-              Отмена
-            </button>
-            <button
-              type="submit"
-              className="btn-primary text-sm px-4 py-2 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50"
-              disabled={loading}
-            >
-              {loading ? <ClipLoader color="#ffffff" size={20} /> : 'Создать'}
-            </button>
+          <div className="flex justify-end space-x-4">
+            <motion.div whileHover={{ scale: 1.05 }}>
+              <Button
+                onClick={() => navigate('/profile')}
+                className="p-3 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-2 focus:ring-gray-500"
+              >
+                Отмена
+              </Button>
+            </motion.div>
+            <motion.div whileHover={{ scale: 1.05 }}>
+              <Button
+                type="submit"
+                className="p-3 rounded-lg bg-gradient-to-r from-indigo-500 to-blue-500 text-white hover:from-indigo-600 hover:to-blue-600 focus:ring-2 focus:ring-indigo-500"
+                disabled={loading}
+              >
+                {loading ? <ClipLoader color="#ffffff" size={20} /> : 'Создать'}
+              </Button>
+            </motion.div>
           </div>
         </form>
-      </div>
+      </motion.div>
     </div>
   );
 }

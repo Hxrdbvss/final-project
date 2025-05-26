@@ -1,103 +1,49 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getRequests, updateRequest } from '../services/api';
-import { motion } from 'framer-motion';
+import { getAllRequests } from '../services/api';
 import { toast } from 'react-toastify';
 import { ClipLoader } from 'react-spinners';
-import { FaEdit, FaSort } from 'react-icons/fa';
+import { FaSort, FaDownload, FaEdit } from 'react-icons/fa';
+import { saveAs } from 'file-saver';
 import ReactPaginate from 'react-paginate';
-import DatePicker from 'react-date-picker';
-import 'react-date-picker/dist/DatePicker.css';
-import 'react-calendar/dist/Calendar.css';
+import { motion } from 'framer-motion';
 
 function AdminRequestList() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isEditingRequest, setIsEditingRequest] = useState(false);
-  const [editRequestData, setEditRequestData] = useState(null);
-  const [availableDates, setAvailableDates] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [sortField, setSortField] = useState('full_name');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [exporting, setExporting] = useState(false);
   const [currentPage, setCurrentPage] = useState(0);
+  const [reportMonth, setReportMonth] = useState('');
   const requestsPerPage = 5;
   const navigate = useNavigate();
 
   const statusLabels = {
     PENDING: 'Ожидание',
-    APPROVED: 'Подтверждено',
+    APPROVED: 'Одобрено',
+    REJECTED: 'Отклонено',
     COMPLETED: 'Завершено',
     CANCELLED: 'Отменено',
   };
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchRequests = async () => {
       try {
-        const response = await getRequests();
-        setRequests(response);
-        const datesResponse = await fetchAvailableDates();
-        setAvailableDates(datesResponse.map(date => new Date(date)));
+        const response = await getAllRequests();
+        setRequests(Array.isArray(response) ? response : []);
       } catch (err) {
-        setError('Ошибка загрузки заявок.');
-        toast.error('Ошибка загрузки данных.', { position: 'top-right' });
+        setError('Ошибка при загрузке заявок');
+        toast.error('Не удалось загрузить заявки.', { position: 'top-right' });
+        setRequests([]);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+
+    fetchRequests();
   }, []);
-
-  const fetchAvailableDates = async () => {
-    return [
-      '2025-05-23T00:00:00Z',
-      '2025-05-24T00:00:00Z',
-      '2025-05-25T00:00:00Z',
-    ];
-  };
-
-  const handleEditRequest = (request) => {
-    setEditRequestData({
-      ...request,
-      scheduled_time: request.scheduled_time ? new Date(request.scheduled_time) : null,
-    });
-    setIsEditingRequest(true);
-  };
-
-  const handleUpdateRequest = async (e) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      const updatedData = {
-        ...editRequestData,
-        scheduled_time: editRequestData.scheduled_time ? editRequestData.scheduled_time.toISOString() : null,
-      };
-      await updateRequest(editRequestData.id, updatedData);
-      const updatedRequests = await getRequests();
-      setRequests(updatedRequests);
-      setIsEditingRequest(false);
-      toast.success('Заявка успешно обновлена!', { position: 'top-right' });
-    } catch (err) {
-      toast.error('Ошибка при обновлении заявки: ' + (err.response?.data?.detail || err.message), { position: 'top-right' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleStatusChange = async (requestId, newStatus) => {
-    try {
-      setLoading(true);
-      await updateRequest(requestId, { status: newStatus });
-      const updatedRequests = await getRequests();
-      setRequests(updatedRequests);
-      toast.success('Статус успешно обновлён!', { position: 'top-right' });
-    } catch (err) {
-      toast.error('Ошибка при обновлении статуса: ' + (err.response?.data?.detail || err.message), { position: 'top-right' });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleSort = (field) => {
     if (sortField === field) {
@@ -108,74 +54,156 @@ function AdminRequestList() {
     }
   };
 
-  const filteredRequests = requests.filter((req) => {
-    const matchesSearch = req.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (req.engineer_name || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
-
-  const sortedRequests = [...filteredRequests].sort((a, b) => {
-    const aValue = a[sortField] || '';
-    const bValue = b[sortField] || '';
+  const sortedRequests = [...requests].sort((a, b) => {
+    const aValue =
+      sortField === 'scheduled_time' || sortField === 'request_date'
+        ? new Date(a[sortField] || 0)
+        : a[sortField] || '';
+    const bValue =
+      sortField === 'scheduled_time' || sortField === 'request_date'
+        ? new Date(b[sortField] || 0)
+        : b[sortField] || '';
     if (aValue < bValue) return sortOrder === 'asc' ? -1 : 1;
     if (aValue > bValue) return sortOrder === 'asc' ? 1 : -1;
     return 0;
   });
 
+  const filteredRequests = sortedRequests.filter((req) => {
+    const isValidEngineer = req.status !== 'APPROVED' || (req.status === 'APPROVED' && req.engineer_name);
+    return isValidEngineer;
+  });
+
   const offset = currentPage * requestsPerPage;
-  const paginatedRequests = sortedRequests.slice(offset, offset + requestsPerPage);
-  const pageCount = Math.ceil(sortedRequests.length / requestsPerPage);
+  const paginatedRequests = filteredRequests.slice(offset, offset + requestsPerPage);
+  const pageCount = Math.ceil(filteredRequests.length / requestsPerPage);
 
-  if (loading) return (
-    <div className="flex justify-center items-center h-screen bg-gray-200">
-      <ClipLoader color="#6366f1" size={50} />
-      <p className="ml-2 text-gray-900">Загрузка...</p>
-    </div>
-  );
+  const exportToCSV = () => {
+    setExporting(true);
+    const headers = [
+      'ID,ФИО,Телефон,Адрес,Тип оборудования,Дата,Статус,Инженер,Время проведения\n',
+    ];
+    const rows = filteredRequests
+      .map((req) => [
+        req.id || '',
+        req.full_name || '',
+        req.phone || '',
+        req.address || '',
+        req.equipment_type || '',
+        req.request_date ? new Date(req.request_date).toLocaleString('ru-RU') : '',
+        statusLabels[req.status] || req.status || '',
+        req.engineer_name || 'Не назначен',
+        req.scheduled_time ? new Date(req.scheduled_time).toLocaleString('ru-RU') : '',
+      ]
+        .map((field) => `"${String(field).replace(/"/g, '""')}"`)
+        .join(','))
+      .join('\n');
+    const csvContent = headers + rows;
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `admin_requests_${new Date().toISOString().split('T')[0]}.csv`);
+    setTimeout(() => setExporting(false), 1000);
+  };
 
-  if (error) return (
-    <div className="flex justify-center items-center min-h-screen bg-gray-200">
-      <div className="max-w-md mx-auto p-6 bg-gray-50 rounded-lg shadow-md">
-        <p className="text-red-500 text-gray-900">{error}</p>
+  const generateEngineerReport = () => {
+    if (!reportMonth) {
+      toast.error('Выберите месяц для отчёта.', { position: 'top-right' });
+      return;
+    }
+
+    const [year, month] = reportMonth.split('-');
+    const startOfMonth = new Date(year, month - 1, 1);
+    const endOfMonth = new Date(year, month, 0);
+
+    const completedRequests = requests.filter((req) => {
+      const requestDate = new Date(req.scheduled_time || req.request_date);
+      return (
+        req.status === 'COMPLETED' &&
+        requestDate >= startOfMonth &&
+        requestDate <= endOfMonth
+      );
+    });
+
+    const engineerStats = completedRequests.reduce((acc, req) => {
+      const engineer = req.engineer_name || 'Не назначен';
+      acc[engineer] = (acc[engineer] || 0) + 1;
+      return acc;
+    }, {});
+
+    const headers = ['Инженер,Количество выполненных заявок\n'];
+    const rows = Object.entries(engineerStats)
+      .map(([engineer, count]) => `"${engineer.replace(/"/g, '""')}",${count}`)
+      .join('\n');
+    const csvContent = headers + rows;
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
+    saveAs(blob, `admin_engineer_report_${reportMonth}.csv`);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen bg-gray-200">
+        <ClipLoader color="#6366f1" size={50} />
+        <p className="ml-2 text-gray-900">Загрузка...</p>
       </div>
-    </div>
-  );
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-200">
+        <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
+          <p className="text-red-500 text-gray-900">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!requests.length) {
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-200">
+        <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-md">
+          <p className="text-gray-900">Заявок пока нет.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen px-4 sm:px-6 lg:px-8 flex justify-center bg-gray-200">
       <div className="w-full max-w-6xl mt-12">
-        <div className="bg-gray-50 rounded-lg shadow-md p-6 sm:p-8">
+        <div className="bg-white rounded-lg shadow-md p-6 sm:p-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">Список всех заявок</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">Управление заявками</h2>
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
-              <input
-                type="text"
-                placeholder="Поиск по ФИО или инженеру..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="p-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-1/3"
-              />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="p-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-1/4"
+              <button
+                onClick={exportToCSV}
+                disabled={exporting}
+                className="p-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 focus:ring-2 focus:ring-gray-500 flex items-center w-full sm:w-auto"
               >
-                <option value="all">Все статусы</option>
-                <option value="PENDING">Ожидание</option>
-                <option value="APPROVED">Подтверждено</option>
-                <option value="COMPLETED">Завершено</option>
-                <option value="CANCELLED">Отменено</option>
-              </select>
+                {exporting ? <ClipLoader color="#ffffff" size={14} /> : (
+                  <>
+                    <FaDownload className="mr-2" /> Экспорт CSV
+                  </>
+                )}
+              </button>
+              <div className="flex gap-2 w-full sm:w-auto">
+                <input
+                  type="month"
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(e.target.value)}
+                  className="p-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-auto"
+                />
+                <button
+                  onClick={generateEngineerReport}
+                  className="p-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 flex items-center w-full sm:w-auto"
+                >
+                  <FaDownload className="mr-2" /> Отчёт по инженерам
+                </button>
+              </div>
             </div>
-            {filteredRequests.length === 0 && !loading && (
-              <p className="text-center text-gray-900">Заявок не найдено.</p>
-            )}
-            {filteredRequests.length > 0 && (
+            {filteredRequests.length ? (
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -189,7 +217,13 @@ function AdminRequestList() {
                           className="py-3 px-4 cursor-pointer text-sm font-medium text-gray-800 uppercase tracking-wider"
                           onClick={() => handleSort('full_name')}
                         >
-                          Пользователь <FaSort className="inline" />
+                          ФИО <FaSort className="inline" />
+                        </th>
+                        <th
+                          className="py-3 px-4 cursor-pointer text-sm font-medium text-gray-800 uppercase tracking-wider"
+                          onClick={() => handleSort('equipment_type')}
+                        >
+                          Оборудование <FaSort className="inline" />
                         </th>
                         <th
                           className="py-3 px-4 cursor-pointer text-sm font-medium text-gray-800 uppercase tracking-wider"
@@ -207,7 +241,7 @@ function AdminRequestList() {
                           className="py-3 px-4 cursor-pointer text-sm font-medium text-gray-800 uppercase tracking-wider"
                           onClick={() => handleSort('scheduled_time')}
                         >
-                          Дата <FaSort className="inline" />
+                          Время проведения <FaSort className="inline" />
                         </th>
                         <th className="py-3 px-4 text-sm font-medium text-gray-800 uppercase tracking-wider">
                           Действия
@@ -215,12 +249,10 @@ function AdminRequestList() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200">
-                      {paginatedRequests.map(request => (
-                        <tr
-                          key={request.id}
-                          className="hover:bg-gray-50"
-                        >
-                          <td className="py-3 px-4 text-sm text-gray-900">{request.full_name || 'N/A'}</td>
+                      {paginatedRequests.map((request) => (
+                        <tr key={request.id} className="hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm text-gray-900">{request.full_name || '-'}</td>
+                          <td className="py-3 px-4 text-sm text-gray-900">{request.equipment_type || '-'}</td>
                           <td className="py-3 px-4 text-sm">
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -228,6 +260,8 @@ function AdminRequestList() {
                                   ? 'bg-green-100 text-green-800'
                                   : request.status === 'PENDING'
                                   ? 'bg-yellow-100 text-yellow-800'
+                                  : request.status === 'REJECTED'
+                                  ? 'bg-red-100 text-red-800'
                                   : request.status === 'COMPLETED'
                                   ? 'bg-blue-100 text-blue-800'
                                   : request.status === 'CANCELLED'
@@ -235,21 +269,24 @@ function AdminRequestList() {
                                   : 'bg-gray-100 text-gray-800'
                               }`}
                             >
-                              {statusLabels[request.status] || request.status}
+                              {statusLabels[request.status] || request.status || 'Не определён'}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-900">{request.engineer_name || 'Не назначен'}</td>
                           <td className="py-3 px-4 text-sm text-gray-900">
-                            {request.scheduled_time ? new Date(request.scheduled_time).toLocaleString('ru-RU') : 'Не назначена'}
+                            {request.engineer_name || 'Не назначен'}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-900">
+                            {request.scheduled_time ? new Date(request.scheduled_time).toLocaleString('ru-RU') : 'Не задано'}
                           </td>
                           <td className="py-3 px-4">
-                            <button
-                              onClick={() => handleEditRequest(request)}
-                              className="bg-blue-500 text-white text-sm px-2 py-1 rounded-md hover:bg-blue-600 flex items-center"
-                              disabled={request.status === 'COMPLETED' || request.status === 'CANCELLED'}
-                            >
-                              <FaEdit className="mr-1" /> Редактировать
-                            </button>
+                            <motion.div whileHover={{ scale: 1.05 }}>
+                              <button
+                                onClick={() => navigate(`/edit-request/${request.id}`)}
+                                className="p-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 focus:ring-2 focus:ring-indigo-500 flex items-center"
+                              >
+                                <FaEdit className="mr-1" /> Редактировать
+                              </button>
+                            </motion.div>
                           </td>
                         </tr>
                       ))}
@@ -276,89 +313,12 @@ function AdminRequestList() {
                   breakLinkClassName="px-3 py-1 text-gray-900"
                 />
               </motion.div>
+            ) : (
+              <p className="text-center text-gray-900">Заявок не найдено.</p>
             )}
           </motion.div>
         </div>
       </div>
-
-      {isEditingRequest && editRequestData && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-        >
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow-2xl w-full max-w-md">
-            <h3 className="text-xl font-semibold mb-5 text-gray-900 dark:text-gray-100">Редактировать заявку</h3>
-            <form onSubmit={handleUpdateRequest} className="space-y-5">
-              <div>
-                <label className="block mb-2 text-sm font-medium text-gray-800 dark:text-gray-200">Время дня</label>
-                <select
-                  name="preferred_time_of_day"
-                  value={editRequestData.preferred_time_of_day || 'morning'}
-                  onChange={(e) => setEditRequestData({ ...editRequestData, preferred_time_of_day: e.target.value })}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-                >
-                  <option value="morning">Утро (9:00–12:00)</option>
-                  <option value="afternoon">День (12:00–15:00)</option>
-                  <option value="evening">Вечер (15:00–18:00)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-gray-800 dark:text-gray-200">Дата</label>
-                <DatePicker
-                  onChange={(date) => setEditRequestData({ ...editRequestData, scheduled_time: date })}
-                  value={editRequestData.scheduled_time}
-                  minDate={new Date()}
-                  tileDisabled={({ date }) => !availableDates.some(d => d.toDateString() === date.toDateString())}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                />
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-gray-800 dark:text-gray-200">Описание</label>
-                <textarea
-                  name="description"
-                  value={editRequestData.description || ''}
-                  onChange={(e) => setEditRequestData({ ...editRequestData, description: e.target.value })}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-                  rows="4"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-gray-800 dark:text-gray-200">Статус</label>
-                <select
-                  name="status"
-                  value={editRequestData.status}
-                  onChange={(e) => setEditRequestData({ ...editRequestData, status: e.target.value })}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
-                >
-                  <option value="PENDING">Ожидание</option>
-                  <option value="APPROVED">Подтверждено</option>
-                  <option value="COMPLETED">Завершено</option>
-                  <option value="CANCELLED">Отменено</option>
-                </select>
-              </div>
-              <div className="flex justify-end space-x-4">
-                <button
-                  type="button"
-                  onClick={() => setIsEditingRequest(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500"
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
-                  disabled={loading}
-                >
-                  {loading ? <ClipLoader color="#ffffff" size={20} /> : 'Сохранить'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </motion.div>
-      )}
     </div>
   );
 }

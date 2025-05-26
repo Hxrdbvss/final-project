@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getRequests, cancelRequest, updateRequest } from '../services/api';
-import api from '../services/api';
 import { toast } from 'react-toastify';
 import { ClipLoader } from 'react-spinners';
 import { FaSearch, FaSort, FaDownload, FaEdit } from 'react-icons/fa';
 import { saveAs } from 'file-saver';
 import ReactPaginate from 'react-paginate';
 import { motion } from 'framer-motion';
+import Card from '../components/Card';
+import Button from '../components/Button';
+import Input from '../components/Input';
+import Select from '../components/Select';
+import Modal from '../components/Modal';
 import DatePicker from 'react-date-picker';
 import 'react-date-picker/dist/DatePicker.css';
 import 'react-calendar/dist/Calendar.css';
@@ -60,7 +64,7 @@ function RequestList() {
   useEffect(() => {
     const fetchAvailableDates = async () => {
       try {
-        const response = await api.get('/requests/available-dates/', {
+        const response = await api.get('available-dates/', {
           params: { time_of_day: editRequestData?.preferred_time_of_day || 'morning' }
         });
         setAvailableDates(response.data.available_dates.map(date => new Date(date)));
@@ -95,9 +99,10 @@ function RequestList() {
   const handleEditRequest = (request) => {
     setEditRequestData({
       id: request.id,
-      preferred_time_of_day: request.preferred_time_of_day,
-      date: request.preferred_date ? new Date(request.preferred_date).toISOString() : '',
+      preferred_time_of_day: request.preferred_time_of_day || 'morning',
+      date: request.preferred_date ? new Date(request.preferred_date).toISOString().split('T')[0] : '',
       description: request.description || '',
+      status: request.status,
     });
     setIsEditingRequest(true);
   };
@@ -105,23 +110,21 @@ function RequestList() {
   const handleUpdateRequest = async (e) => {
     e.preventDefault();
     try {
-      const data = {
-        full_name: editRequestData.full_name || '',
-        email: editRequestData.email || '',
-        phone: editRequestData.phone || '',
-        address: editRequestData.address || '',
-        equipment_type: editRequestData.equipment_type || '',
+      setLoading(true);
+      const dataToSend = {
+        ...editRequestData,
         preferred_date: editRequestData.date,
-        preferred_time_of_day: editRequestData.preferred_time_of_day,
-        location: editRequestData.location || '',
+        status: editRequestData.status === 'APPROVED' ? 'APPROVED' : 'PENDING', // Устанавливаем статус явно
       };
-      await updateRequest(editRequestData.id, data);
-      const updatedRequests = await getRequests();
-      setRequests(updatedRequests);
+      await updateRequest(editRequestData.id, dataToSend);
       setIsEditingRequest(false);
+      const requestsResponse = await getRequests();
+      setRequests(requestsResponse);
       toast.success('Заявка успешно обновлена!', { position: 'top-right' });
     } catch (err) {
-      toast.error('Ошибка при обновлении заявки: ' + (err.response?.data?.detail || err.message), { position: 'top-right' });
+      toast.error(err.response?.data?.detail || 'Ошибка при обновлении заявки.', { position: 'top-right' });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -165,7 +168,9 @@ function RequestList() {
         const matchesSearch =
           req.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           req.equipment_type?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          (req.engineer_name || '').toLowerCase().includes(searchTerm.toLowerCase());
+          (req.engineer_name || '')
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase());
         const matchesStatus = statusFilter === 'all' || req.status === statusFilter;
         const requestDate = req.request_date ? new Date(req.request_date) : null;
         const startDate = dateRange.start ? new Date(dateRange.start) : null;
@@ -212,17 +217,17 @@ function RequestList() {
             ? new Date(req.request_date).toLocaleString('ru-RU')
             : '',
           statusLabels[req.status] || req.status || '',
-          req.engineer_name || '',
+          req.engineer_name || 'Не назначен',
           req.scheduled_time
             ? new Date(req.scheduled_time).toLocaleString('ru-RU')
-            : '',
+            : 'Не задано',
         ]
-          .map((field) => `"${field}"`)
+          .map((field) => `"${String(field).replace(/"/g, '""')}"`)
           .join(',')
       )
       .join('\n');
     const csvContent = headers + rows;
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob([new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent], { type: 'text/csv;charset=utf-8;' });
     saveAs(blob, 'requests.csv');
     setTimeout(() => setExporting(false), 1000);
   };
@@ -237,49 +242,51 @@ function RequestList() {
   if (error)
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-200">
-        <div className="max-w-md mx-auto p-6 bg-gray-50 rounded-lg shadow-md">
+        <Card className="max-w-md mx-auto p-6 sm:p-8 bg-gray-50 rounded-lg shadow-md">
           <p className="text-red-500 text-gray-900">{error}</p>
-        </div>
+        </Card>
       </div>
     );
   if (!requests.length)
     return (
       <div className="flex justify-center items-center min-h-screen bg-gray-200">
-        <div className="max-w-md mx-auto p-6 bg-gray-50 rounded-lg shadow-md">
+        <Card className="max-w-md mx-auto p-6 sm:p-8 bg-gray-50 rounded-lg shadow-md">
           <p className="text-gray-900">
             Заявок пока нет.{' '}
             <a
               href="/"
               className="text-gray-800 hover:text-gray-900"
-              onClick={(e) => { e.preventDefault(); navigate('/'); }}
+              onClick={() => navigate('/')}
             >
               Создать новую заявку
             </a>
           </p>
-        </div>
+        </Card>
       </div>
     );
 
   return (
     <div className="min-h-screen px-4 sm:px-6 lg:px-8 flex justify-center bg-gray-200">
       <div className="w-full max-w-6xl mt-12">
-        <div className="bg-gray-50 rounded-lg shadow-md p-6 sm:p-8">
+        <Card className="bg-gray-50 rounded-lg shadow-md p-6 sm:p-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">Ваши заявки</h2>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-center">
+              Ваши заявки
+            </h2>
             <div className="flex flex-col sm:flex-row gap-4 mb-6">
               <div className="relative flex-1 max-w-xs">
-                <input
-                  type="text"
+                <Input
                   placeholder="Поиск по ФИО, оборудованию или инженеру..."
                   value={searchTerm}
                   onChange={handleSearchChange}
                   onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                   onFocus={() => searchTerm.length > 0 && setShowSuggestions(true)}
-                  className="p-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full"
+                  icon={FaSearch}
+                  className="text-gray-900"
                 />
                 {showSuggestions && suggestions.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 bg-gray-50/90 backdrop-blur-lg rounded-md shadow-lg z-10 max-h-48 overflow-y-auto">
@@ -295,41 +302,50 @@ function RequestList() {
                   </div>
                 )}
               </div>
-              <select
+              <Select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="p-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-1/4"
-              >
-                <option value="all">Все статусы</option>
-                <option value="PENDING">Ожидание</option>
-                <option value="APPROVED">Одобрено</option>
-                <option value="REJECTED">Отклонено</option>
-                <option value="COMPLETED">Завершено</option>
-                <option value="CANCELLED">Отменено</option>
-              </select>
-              <input
+                options={[
+                  { value: 'all', label: 'Все статусы' },
+                  { value: 'PENDING', label: 'Ожидание' },
+                  { value: 'APPROVED', label: 'Одобрено' },
+                  { value: 'REJECTED', label: 'Отклонено' },
+                  { value: 'COMPLETED', label: 'Завершено' },
+                  { value: 'CANCELLED', label: 'Отменено' },
+                ]}
+                className="text-gray-900"
+              />
+              <Input
                 type="date"
                 placeholder="Начальная дата"
                 value={dateRange.start}
-                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
-                className="p-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-1/6"
+                onChange={(e) =>
+                  setDateRange({ ...dateRange, start: e.target.value })
+                }
+                className="text-gray-900"
               />
-              <input
+              <Input
                 type="date"
                 placeholder="Конечная дата"
                 value={dateRange.end}
                 onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                className="p-3 border border-gray-300 rounded-lg bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 w-full sm:w-1/6"
+                className="text-gray-900"
               />
-              <button
-                onClick={exportToCSV}
-                disabled={exporting}
-                className="p-3 bg-gray-800 text-white rounded-lg hover:bg-gray-900 focus:ring-2 focus:ring-gray-500 flex items-center w-full sm:w-auto"
-              >
-                {exporting ? <ClipLoader color="#ffffff" size={14} /> : <>
-                  <FaDownload className="mr-2" /> Экспорт CSV
-                </>}
-              </button>
+              <motion.div whileHover={{ scale: 1.05 }}>
+                <Button
+                  onClick={exportToCSV}
+                  disabled={exporting}
+                  className="bg-gray-800 text-white hover:bg-gray-900 focus:ring-gray-500"
+                >
+                  {exporting ? (
+                    <ClipLoader color="#ffffff" size={14} />
+                  ) : (
+                    <>
+                      <FaDownload className="mr-2" /> Экспорт CSV
+                    </>
+                  )}
+                </Button>
+              </motion.div>
             </div>
             {filteredRequests.length ? (
               <motion.div
@@ -382,8 +398,12 @@ function RequestList() {
                           key={request.id}
                           className="hover:bg-gray-50"
                         >
-                          <td className="py-3 px-4 text-sm text-gray-900">{request.full_name || '-'}</td>
-                          <td className="py-3 px-4 text-sm text-gray-900">{request.equipment_type || '-'}</td>
+                          <td className="py-3 px-4 text-sm text-gray-900">
+                            {request.full_name || '-'}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-900">
+                            {request.equipment_type || '-'}
+                          </td>
                           <td className="py-3 px-4 text-sm">
                             <span
                               className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -403,25 +423,41 @@ function RequestList() {
                               {statusLabels[request.status] || request.status || 'Не определён'}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-sm text-gray-900">{request.engineer_name || 'Не назначен'}</td>
                           <td className="py-3 px-4 text-sm text-gray-900">
-                            {request.scheduled_time ? new Date(request.scheduled_time).toLocaleString('ru-RU') : 'Не задано'}
+                            {request.engineer_name || 'Не назначен'}
+                          </td>
+                          <td className="py-3 px-4 text-sm text-gray-900">
+                            {request.scheduled_time
+                              ? new Date(request.scheduled_time).toLocaleString('ru-RU')
+                              : 'Не задано'}
                           </td>
                           <td className="py-3 px-4 flex gap-2">
-                            <button
-                              onClick={() => handleEditRequest(request)}
-                              className="bg-blue-500 text-white text-sm px-2 py-1 rounded-md hover:bg-blue-600 flex items-center"
-                              disabled={request.status === 'REJECTED' || request.status === 'COMPLETED' || request.status === 'CANCELLED'}
-                            >
-                              <FaEdit className="mr-1" /> Редактировать
-                            </button>
-                            <button
-                              onClick={() => handleCancel(request.id)}
-                              className="bg-red-500 text-white text-sm px-2 py-1 rounded-md hover:bg-red-600 flex items-center"
-                              disabled={request.status === 'REJECTED' || request.status === 'COMPLETED' || request.status === 'CANCELLED'}
-                            >
-                              Отменить
-                            </button>
+                            <motion.div whileHover={{ scale: 1.05 }}>
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleEditRequest(request)}
+                                disabled={
+                                  request.status === 'REJECTED' || request.status === 'COMPLETED' || request.status === 'CANCELLED'
+                                }
+                                className="bg-gray-800 text-white hover:bg-gray-900 focus:ring-gray-500"
+                              >
+                                <FaEdit className="inline mr-1" /> Редактировать
+                              </Button>
+                            </motion.div>
+                            <motion.div whileHover={{ scale: 1.05 }}>
+                              <Button
+                                variant="danger"
+                                size="sm"
+                                onClick={() => handleCancel(request.id)}
+                                disabled={
+                                  request.status === 'REJECTED' || request.status === 'COMPLETED' || request.status === 'CANCELLED'
+                                }
+                                className="bg-gray-800 text-white hover:bg-gray-900 focus:ring-gray-500"
+                              >
+                                Отменить
+                              </Button>
+                            </motion.div>
                           </td>
                         </tr>
                       ))}
@@ -449,97 +485,87 @@ function RequestList() {
                 />
               </motion.div>
             ) : (
-              <p className="text-center text-gray-900">Заявок не найдено.</p>
+              <p className="text-center text-gray-900">
+                Заявок не найдено.
+              </p>
             )}
           </motion.div>
-        </div>
+        </Card>
       </div>
 
-      {showModal && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
-        >
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow-2xl w-full max-w-md">
-            <h3 className="text-xl font-semibold mb-5 text-gray-900 dark:text-gray-100">Подтверждение</h3>
-            <p className="mb-6 text-gray-700 dark:text-gray-300">Вы уверены, что хотите отменить эту заявку?</p>
-            <div className="flex justify-end space-x-4">
-              <button
-                type="button"
-                onClick={() => setShowModal(false)}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500"
-              >
-                Отмена
-              </button>
-              <button
-                type="button"
-                onClick={confirmCancel}
-                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500"
-                disabled={loading}
-              >
-                {loading ? <ClipLoader color="#ffffff" size={20} /> : 'Подтвердить'}
-              </button>
-            </div>
-          </div>
-        </motion.div>
-      )}
+      <Modal
+        show={showModal}
+        onHide={() => setShowModal(false)}
+        title="Подтверждение"
+        onConfirm={confirmCancel}
+      >
+        Вы уверены, что хотите отменить эту заявку?
+      </Modal>
 
       {isEditingRequest && editRequestData && (
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50"
+          className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
         >
-          <div className="bg-white dark:bg-gray-900 p-6 rounded-xl shadow-2xl w-full max-w-md">
-            <h3 className="text-xl font-semibold mb-5 text-gray-900 dark:text-gray-100">Редактировать заявку</h3>
-            <form onSubmit={handleUpdateRequest} className="space-y-5">
-              <div>
-                <label className="block mb-2 text-sm font-medium text-gray-800 dark:text-gray-200">Время дня</label>
+          <div className="bg-white dark:bg-gray-800 p-5 rounded-lg shadow-lg w-full max-w-sm">
+            <h3 className="text-lg mb-4 text-gray-900 dark:text-gray-100">Редактировать заявку</h3>
+            <form onSubmit={handleUpdateRequest}>
+              <div className="mb-3">
+                <label className="block mb-1 text-gray-700 dark:text-gray-300">Выберите время дня</label>
                 <select
                   name="preferred_time_of_day"
-                  value={editRequestData.preferred_time_of_day || 'morning'}
+                  value={editRequestData.preferred_time_of_day}
                   onChange={(e) => setEditRequestData({ ...editRequestData, preferred_time_of_day: e.target.value })}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                  className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                 >
                   <option value="morning">Утро (9:00–12:00)</option>
                   <option value="afternoon">День (12:00–15:00)</option>
                   <option value="evening">Вечер (15:00–18:00)</option>
                 </select>
               </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-gray-800 dark:text-gray-200">Дата</label>
+              <div className="mb-3">
+                <label className="block mb-1 text-gray-700 dark:text-gray-300">Дата</label>
                 <DatePicker
-                  onChange={(date) => setEditRequestData({ ...editRequestData, date: date.toISOString() })}
+                  onChange={(date) => setEditRequestData({ ...editRequestData, date: date.toISOString().split('T')[0] })}
                   value={editRequestData.date ? new Date(editRequestData.date) : null}
+                  disabledDays={(date) => !availableDates.some(d => d.toDateString() === date.toDateString())}
                   minDate={new Date()}
-                  tileDisabled={({ date }) => !availableDates.some(d => d.toDateString() === date.toDateString())}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
                 />
               </div>
-              <div>
-                <label className="block mb-2 text-sm font-medium text-gray-800 dark:text-gray-200">Описание</label>
+              <div className="mb-3">
+                <label className="block mb-1 text-gray-700 dark:text-gray-300">Статус</label>
+                <Select
+                  value={editRequestData.status}
+                  onChange={(e) => setEditRequestData({ ...editRequestData, status: e.target.value })}
+                  options={[
+                    { value: 'PENDING', label: 'Ожидание' },
+                    { value: 'APPROVED', label: 'Одобрено' },
+                  ]}
+                  className="text-gray-900"
+                />
+              </div>
+              <div className="mb-3">
+                <label className="block mb-1 text-gray-700 dark:text-gray-300">Описание</label>
                 <textarea
                   name="description"
                   value={editRequestData.description}
                   onChange={(e) => setEditRequestData({ ...editRequestData, description: e.target.value })}
-                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400"
+                  className="w-full p-2 border rounded bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-gray-100"
                   required
                 />
               </div>
-              <div className="flex justify-end space-x-4">
+              <div className="flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => setIsEditingRequest(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-600 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-500"
+                  className="btn-secondary text-sm px-4 py-2 rounded-md"
                 >
                   Отмена
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-lg hover:bg-indigo-700 focus:ring-2 focus:ring-indigo-500 disabled:opacity-50"
+                  className="btn-primary text-sm px-4 py-2 rounded-md"
                   disabled={loading}
                 >
                   {loading ? <ClipLoader color="#ffffff" size={20} /> : 'Сохранить'}

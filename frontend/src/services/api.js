@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api/', // Указываем адрес бэкенда
+  baseURL: 'http://127.0.0.1:8000/api/',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -48,13 +48,24 @@ export const getRequests = () => api.get('/requests/').then(res => res.data);
 export const getUserRequests = () => api.get('/requests/user_requests/').then(res => res.data);
 export const createRequest = (data) => api.post('/requests/', data).then(res => res.data);
 export const cancelRequest = (id) => api.delete(`/requests/${id}/`).then(res => res.data);
-export const getProfile = () => api.get('/user-profiles/').then(res => res.data); // Исправляем путь
-export const updateProfile = (data) => api.patch('/user-profiles/1/', data).then(res => res.data); // Исправляем путь и метод
+export const getProfile = () => api.get('/user-profiles/').then(res => res.data);
+export const updateProfile = (data) => api.patch('/user-profiles/me/', data).then(res => res.data);
 export const loginUser = (credentials) => api.post('/token/', credentials).then(res => res.data);
 export const registerUser = (data) => api.post('/register/', data).then(res => res.data);
-export const updateRequest = (id, data) => api.put(`/requests/${id}/`, data).then(res => res.data);
+export const updateRequest = (id, data) => api.patch(`/admin/requests/${id}/`, data).then(res => res.data);
 export const getLocations = () => api.get('/locations/').then(res => res.data);
 export const unsubscribeProfile = () => api.delete('/profile/unsubscribe/').then(res => res.data);
 export const createEngineer = (data) => api.post('/create-engineer/', data).then(res => res.data);
+export const assignEngineer = (requestId, engineerId) => 
+  api.patch(`/admin/requests/${requestId}/assign-engineer/`, { engineer_id: engineerId }).then(res => res.data);
+export const getAllRequests = () => api.get('/admin/requests/').then(res => res.data);
+export const updateRequestStatus = (id, status) => 
+  api.patch(`/admin/requests/${id}/update-status/`, { status }).then(res => res.data);
+export const getRequest = (id) => api.get(`/requests/${id}/`).then(res => res.data);
+
+// Добавляем недостающие функции
+export const getAvailableDates = () => api.get('/requests/available-dates/').then(res => res.data);
+export const getAvailableEngineers = (date, timeOfDay) =>
+  api.get(`/requests/available-engineers/?date=${date}&time_of_day=${timeOfDay}`).then(res => res.data);
 
 export default api;
