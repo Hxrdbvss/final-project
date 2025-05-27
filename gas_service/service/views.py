@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
@@ -46,7 +46,7 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 class EngineerViewSet(viewsets.ModelViewSet):
     queryset = Engineer.objects.all()
     serializer_class = EngineerSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsAdminUser]
 
 class ServiceRequestViewSet(viewsets.ModelViewSet):
     serializer_class = ServiceRequestSerializer

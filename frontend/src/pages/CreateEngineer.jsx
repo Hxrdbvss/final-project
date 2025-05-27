@@ -3,126 +3,133 @@ import { useNavigate } from 'react-router-dom';
 import { createEngineer } from '../services/api';
 import { toast } from 'react-toastify';
 import { ClipLoader } from 'react-spinners';
-import { motion } from 'framer-motion';
-import Button from '../components/Button';
-import Input from '../components/Input';
 
 function CreateEngineer() {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
-    full_name: '',
-    phone: '',
     email: '',
-    address: '',
-    location: '',
+    first_name: '',
+    last_name: '',
+    location_id: '',
+    work_start_time: '',
+    work_end_time: '',
+    is_available: true,
   });
   const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
 
-  const handleChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
-      setLoading(true);
       await createEngineer(formData);
       toast.success('Инженер успешно создан!', { position: 'top-right' });
-      navigate('/profile');
+      navigate('/request-list');
     } catch (err) {
-      toast.error(err.response?.data || 'Ошибка при создании инженера.', { position: 'top-right' });
+      toast.error('Ошибка при создании инженера.', { position: 'top-right' });
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen py-20 px-4 bg-gradient-to-r from-indigo-100 to-blue-100 flex justify-center items-center">
-      <motion.div
-        initial={{ opacity: 0, y: 50 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-        className="bg-white shadow-lg rounded-xl p-8 max-w-md w-full"
-      >
-        <h1 className="text-3xl font-semibold text-gray-800 mb-6 text-center bg-gradient-to-r from-indigo-500 to-blue-500 text-transparent bg-clip-text">
-          Создать инженера
-        </h1>
-        <form onSubmit={handleSubmit}>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">ФИО</label>
-            <Input
-              type="text"
-              name="full_name"
-              value={formData.full_name}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
-              required
-            />
-          </div>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Телефон</label>
-            <Input
-              type="tel"
-              name="phone"
-              value={formData.phone}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
-              required
-            />
-          </div>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-            <Input
+    <div className="h-full flex justify-center bg-gray-200">
+      <div className="w-full max-w-md bg-white rounded-lg shadow-md p-4 flex flex-col overflow-hidden">
+        <h2 className="text-xl font-bold text-gray-900 mb-4 text-center">Создать инженера</h2>
+        <form onSubmit={handleSubmit} className="flex-grow space-y-3 overflow-hidden">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
               type="email"
               name="email"
               value={formData.email}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
               required
             />
           </div>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Адрес</label>
-            <Input
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Имя</label>
+            <input
               type="text"
-              name="address"
-              value={formData.address}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
+              name="first_name"
+              value={formData.first_name}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
             />
           </div>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Локация (ID)</label>
-            <Input
-              type="number"
-              name="location"
-              value={formData.location}
-              onChange={handleChange}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Фамилия</label>
+            <input
+              type="text"
+              name="last_name"
+              value={formData.last_name}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
             />
           </div>
-          <div className="flex justify-end space-x-4">
-            <motion.div whileHover={{ scale: 1.05 }}>
-              <Button
-                onClick={() => navigate('/profile')}
-                className="p-3 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-2 focus:ring-gray-500"
-              >
-                Отмена
-              </Button>
-            </motion.div>
-            <motion.div whileHover={{ scale: 1.05 }}>
-              <Button
-                type="submit"
-                className="p-3 rounded-lg bg-gradient-to-r from-indigo-500 to-blue-500 text-white hover:from-indigo-600 hover:to-blue-600 focus:ring-2 focus:ring-indigo-500"
-                disabled={loading}
-              >
-                {loading ? <ClipLoader color="#ffffff" size={20} /> : 'Создать'}
-              </Button>
-            </motion.div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">ID локации</label>
+            <input
+              type="text"
+              name="location_id"
+              value={formData.location_id}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Начало работы</label>
+            <input
+              type="time"
+              name="work_start_time"
+              value={formData.work_start_time}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Конец работы</label>
+            <input
+              type="time"
+              name="work_end_time"
+              value={formData.work_end_time}
+              onChange={handleInputChange}
+              className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-gray-800"
+            />
+          </div>
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              name="is_available"
+              checked={formData.is_available}
+              onChange={(e) => setFormData((prev) => ({ ...prev, is_available: e.target.checked }))}
+              className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+            />
+            <label className="ml-2 text-sm font-medium text-gray-700">Доступен</label>
+          </div>
+          <div className="mt-auto flex justify-end space-x-2">
+            <button
+              type="button"
+              onClick={() => navigate('/request-list')}
+              className="p-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 focus:ring-2 focus:ring-gray-500"
+            >
+              Отмена
+            </button>
+            <button
+              type="submit"
+              className="p-2 rounded-lg bg-gradient-to-r from-indigo-500 to-blue-500 text-white hover:from-indigo-600 hover:to-blue-600 focus:ring-2 focus:ring-indigo-500"
+              disabled={loading}
+            >
+              {loading ? <ClipLoader color="#ffffff" size={20} /> : 'Создать'}
+            </button>
           </div>
         </form>
-      </motion.div>
+      </div>
     </div>
   );
 }

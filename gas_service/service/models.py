@@ -56,7 +56,8 @@ class ServiceRequest(models.Model):
         ('COMPLETED', 'Завершено'),
         ('CANCELLED', 'Отменено'),
     )
-
+    
+    description = models.TextField(blank=True, null=True)
     user = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     full_name = models.CharField(max_length=255)
     email = models.EmailField()

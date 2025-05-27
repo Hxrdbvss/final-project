@@ -109,22 +109,29 @@ function RequestList() {
 
   const handleUpdateRequest = async (e) => {
     e.preventDefault();
+    if (!editRequestData) return;
+
     try {
-      setLoading(true);
-      const dataToSend = {
-        ...editRequestData,
-        preferred_date: editRequestData.date,
-        status: editRequestData.status === 'APPROVED' ? 'APPROVED' : 'PENDING', // Устанавливаем статус явно
-      };
-      await updateRequest(editRequestData.id, dataToSend);
-      setIsEditingRequest(false);
-      const requestsResponse = await getRequests();
-      setRequests(requestsResponse);
-      toast.success('Заявка успешно обновлена!', { position: 'top-right' });
+        setLoading(true);
+        const dataToSend = {
+            full_name: editRequestData.full_name,
+            phone: editRequestData.phone,
+            address: editRequestData.address,
+            equipment_type: editRequestData.equipment_type,
+            description: editRequestData.description || '',
+            preferred_date: editRequestData.preferred_date?.toISOString().split('T')[0],
+            preferred_time_of_day: editRequestData.preferred_time_of_day,
+        };
+        await updateRequest(editRequestData.id, dataToSend);
+        toast.success('Заявка обновлена!', { position: 'top-right' });
+        setIsEditingRequest(false);
+        fetchRequests();
     } catch (err) {
-      toast.error(err.response?.data?.detail || 'Ошибка при обновлении заявки.', { position: 'top-right' });
+        const errorMessage = err.response?.data?.detail || err.message || 'Ошибка при обновлении заявки';
+        toast.error(errorMessage, { position: 'top-right' });
+        console.error('Ошибка:', err.response?.data || err);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
   };
 
@@ -267,8 +274,8 @@ function RequestList() {
 
   return (
     <div className="min-h-screen px-4 sm:px-6 lg:px-8 flex justify-center bg-gray-200">
-      <div className="w-full max-w-6xl mt-12">
-        <Card className="bg-gray-50 rounded-lg shadow-md p-6 sm:p-8">
+      <div className="w-full max-w-7xl mt-12"> {/* Увеличен до max-w-7xl */}
+        <Card className="bg-gray-50 rounded-lg shadow-md p-6 sm:p-8"> {/* Увеличен p-4 sm:p-6 до p-6 sm:p-8 */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}

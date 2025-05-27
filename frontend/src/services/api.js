@@ -52,20 +52,16 @@ export const getProfile = () => api.get('/user-profiles/').then(res => res.data)
 export const updateProfile = (data) => api.patch('/user-profiles/me/', data).then(res => res.data);
 export const loginUser = (credentials) => api.post('/token/', credentials).then(res => res.data);
 export const registerUser = (data) => api.post('/register/', data).then(res => res.data);
-export const updateRequest = (id, data) => api.patch(`/admin/requests/${id}/`, data).then(res => res.data);
+export const updateRequest = (id, data) => api.patch(`/requests/${id}/`, data).then(res => res.data);
 export const getLocations = () => api.get('/locations/').then(res => res.data);
 export const unsubscribeProfile = () => api.delete('/profile/unsubscribe/').then(res => res.data);
 export const createEngineer = (data) => api.post('/create-engineer/', data).then(res => res.data);
-export const assignEngineer = (requestId, engineerId) => 
-  api.patch(`/admin/requests/${requestId}/assign-engineer/`, { engineer_id: engineerId }).then(res => res.data);
+export const assignEngineer = (requestId, engineerId) => api.patch(`/admin/requests/${requestId}/assign-engineer/`, { engineer_id: engineerId }).then(res => res.data);
 export const getAllRequests = () => api.get('/admin/requests/').then(res => res.data);
-export const updateRequestStatus = (id, status) => 
-  api.patch(`/admin/requests/${id}/update-status/`, { status }).then(res => res.data);
+export const updateRequestStatus = (id, status) => api.patch(`/admin/requests/${id}/update-status/`, { status }).then(res => res.data);
 export const getRequest = (id) => api.get(`/requests/${id}/`).then(res => res.data);
-
-// Добавляем недостающие функции
 export const getAvailableDates = () => api.get('/requests/available-dates/').then(res => res.data);
-export const getAvailableEngineers = (date, timeOfDay) =>
-  api.get(`/requests/available-engineers/?date=${date}&time_of_day=${timeOfDay}`).then(res => res.data);
+export const getAvailableEngineers = (date, timeOfDay) => api.get(`/requests/available-engineers/?date=${date}&time_of_day=${timeOfDay}`).then(res => res.data);
+export const getEngineers = () => api.get('/engineers/').then(res => res.data);
 
 export default api;

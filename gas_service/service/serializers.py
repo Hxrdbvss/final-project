@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import UserProfile, ServiceRequest, Engineer, Location, Street
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, time
 
 class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(source='user.email', read_only=True)
@@ -36,13 +36,14 @@ class StreetSerializer(serializers.ModelSerializer):
 class ServiceRequestSerializer(serializers.ModelSerializer):
     engineer_name = serializers.CharField(source='engineer.full_name', read_only=True, allow_null=True)
     scheduled_time = serializers.DateTimeField(format='%Y-%m-%d %H:%M', read_only=True)
+    description = serializers.CharField(allow_blank=True, required=False)
 
     class Meta:
         model = ServiceRequest
         fields = [
             'id', 'user', 'full_name', 'email', 'phone', 'address', 'equipment_type',
-            'request_date', 'scheduled_time', 'status', 'engineer', 'engineer_name',
-            'location', 'preferred_date', 'preferred_time_of_day'
+            'description', 'request_date', 'scheduled_time', 'status', 'engineer',
+            'engineer_name', 'location', 'preferred_date', 'preferred_time_of_day'
         ]
         read_only_fields = ['id', 'user', 'request_date', 'scheduled_time']
 
@@ -100,7 +101,6 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
                     instance.status = 'APPROVED'
                     instance.save()
         elif validated_data.get('preferred_date') and validated_data.get('preferred_time_of_day'):
-            # Назначение инженера при создании с preferred_date
             time_ranges = {
                 'morning': (time(9, 0), time(12, 0)),
                 'afternoon': (time(12, 0), time(15, 0)),
@@ -113,8 +113,11 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
                 work_start_time__lte=start_time,
                 work_end_time__gte=end_time
             )
+            if instance.location:
+                engineers = engineers.filter(location=instance.location)
+
             if engineers.exists():
-                selected_engineer = engineers.order_by('?').first()  # Случайный инженер
+                selected_engineer = engineers.order_by('?').first()
                 instance.engineer = selected_engineer
                 instance.scheduled_time = timezone.make_aware(datetime.combine(scheduled_date, start_time))
                 instance.status = 'APPROVED'
@@ -124,6 +127,10 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         old_status = instance.status
+        preferred_date = validated_data.get('preferred_date', instance.preferred_date)
+        preferred_time_of_day = validated_data.get('preferred_time_of_day', instance.preferred_time_of_day)
+        engineer_id = validated_data.pop('engineer_id', None)
+
         instance = super().update(instance, validated_data)
 
         profile, created = UserProfile.objects.get_or_create(user=instance.user)
@@ -131,6 +138,23 @@ class ServiceRequestSerializer(serializers.ModelSerializer):
         profile.phone = validated_data.get('phone', profile.phone)
         profile.address = validated_data.get('address', profile.address)
         profile.save()
+
+        if engineer_id:
+            try:
+                engineer = Engineer.objects.get(id=engineer_id)
+                instance.engineer = engineer
+            except Engineer.DoesNotExist:
+                raise serializers.ValidationError("Инженер не найден.")
+
+        if preferred_date != instance.preferred_date or preferred_time_of_day != instance.preferred_time_of_day:
+            time_ranges = {
+                'morning': (time(9, 0), time(12, 0)),
+                'afternoon': (time(12, 0), time(15, 0)),
+                'evening': (time(15, 0), time(18, 0)),
+            }
+            start_time, _ = time_ranges.get(preferred_time_of_day, (time(9, 0), time(12, 0)))
+            instance.scheduled_time = timezone.make_aware(datetime.combine(preferred_date, start_time))
+            instance.save()
 
         if validated_data.get('status') == 'APPROVED' and not instance.engineer:
             raise serializers.ValidationError("Невозможно установить статус 'Одобрено' без назначенного инженера.")

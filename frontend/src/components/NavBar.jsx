@@ -38,7 +38,7 @@ function NavBar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/" className="text-2xl font-bold">
-              GasService
+              Газпром Сервис
             </Link>
           </div>
           <div className="flex items-center space-x-4">
